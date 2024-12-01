@@ -93,3 +93,6 @@ ENV/
 env/
 env.bak/
 venv.bak/
+
+# Data
+data/

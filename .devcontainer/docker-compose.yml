@@ -11,7 +11,7 @@ services:
       - ../..:/workspaces:cached
 
     # Overrides default command so things don't shut down after the process ends.
-    entrypoint: /usr/local/share/docker-init.sh
+    # entrypoint: /usr/local/share/docker-init.sh
     command: sleep infinity 
 
     # Uncomment the next four lines if you will use a ptrace-based debuggers like C++, Go, and Rust.
@@ -22,3 +22,17 @@ services:
 
     # Use "forwardPorts" in **devcontainer.json** to forward an app port locally. 
     # (Adding the "ports" property to this file will not forward from a Codespace.)
+  db:
+    image: postgres:15
+    container_name: financial_data_db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+volumes:
+  db_data:
+    driver: local
