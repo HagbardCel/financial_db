@@ -17,12 +17,6 @@
 			"enableNonRootDocker": "true",
 			"moby": "true"
 		}
-		//,
-		//"ghcr.io/devcontainers/features/python:1": {
-		//	"installTools": true,
-		//	"installJupyterlab": true,
-		//	"version": "3.12"
-		//}
 	},
 	"customizations": {
 		"vscode": {

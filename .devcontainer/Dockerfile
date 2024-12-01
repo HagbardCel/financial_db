@@ -14,9 +14,6 @@ USER devuser
 # Set the working directory
 WORKDIR /home/devuser
 
-# Add devuser to the docker group
-# RUN usermod -aG docker devuser
-
 # Copy the requirements file and install dependencies as the non-root user
 COPY --chown=devuser:devuser requirements.txt /tmp/
 RUN pip3 install --user -r /tmp/requirements.txt
