@@ -22,7 +22,15 @@ CREATE TABLE IF NOT EXISTS indices (
     PRIMARY KEY (id, date)
 );
 
-CREATE TABLE IF NOT EXISTS macro_indicators (
+CREATE TABLE IF NOT EXISTS macro_data (
+    id SERIAL NOT NULL,
+    date DATE NOT NULL,
+    long_name VARCHAR(50) NOT NULL,
+    value NUMERIC(12, 2),
+    PRIMARY KEY (id, date)
+);
+
+CREATE TABLE IF NOT EXISTS test_data (
     id SERIAL NOT NULL,
     date DATE NOT NULL,
     long_name VARCHAR(50) NOT NULL,
