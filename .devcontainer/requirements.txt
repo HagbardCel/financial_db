@@ -1,7 +1,8 @@
 jupyterlab
 pandas
-numpy
-scikit-learn
 matplotlib
+numpy
+psycopg2-binary
+scikit-learn
 seaborn
 yfinance

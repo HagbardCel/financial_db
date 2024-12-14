@@ -1,8 +1,18 @@
+networks:
+  shared_network:
+    driver: bridge
+
 services:
   devcontainer:
+
+    env_file: .env
+
     build: 
       context: .
       dockerfile: Dockerfile
+
+    networks:
+      - shared_network
 
     volumes:
       # Forwards the local Docker socket to the container.
@@ -11,13 +21,13 @@ services:
       - ../..:/workspaces:cached
 
     # Overrides default command so things don't shut down after the process ends.
-    command: sleep infinity 
-
-    # Uncomment the next four lines if you will use a ptrace-based debuggers like C++, Go, and Rust.
-    # cap_add:
-    #  - SYS_PTRACE
-    # security_opt:
-    #   - seccomp:unconfined
+    command:
+      sh -c "
+       sudo chown root:docker /var/run/docker-host.sock &&
+       sudo chown root:docker /var/run/docker.sock &&
+       sudo chmod 660 /var/run/docker-host.sock &&
+       sudo chmod 660 /var/run/docker.sock &&
+       sleep infinity"
 
     # Use "forwardPorts" in **devcontainer.json** to forward an app port locally. 
     # (Adding the "ports" property to this file will not forward from a Codespace.)
@@ -28,10 +38,13 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
+    networks:
+      - shared_network
     ports:
       - "${POSTGRES_PORT}:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
+
 volumes:
   db_data:
     driver: local

@@ -8,6 +8,12 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
 # Create a non-root user
 RUN useradd -m -s /bin/bash devuser
 
+# Add the user to the docker group
+RUN groupadd docker || true && usermod -aG docker devuser
+
+# Add devuser to sudoers with no password
+RUN echo "devuser ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
 # Set the user to the new non-root user
 USER devuser
 
