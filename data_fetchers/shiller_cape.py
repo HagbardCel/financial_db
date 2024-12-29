@@ -86,7 +86,7 @@ def load_shiller_cape_data(file_url: str) -> pd.DataFrame:
     return cape_data
 
 def write_to_database(data: pd.DataFrame, column_mapping: dict):
-    """Write raw columns to the macro_data table in the database."""
+    """Write raw and derived columns to the appropriate tables in the database."""
     # Database connection parameters
     conn = psycopg2.connect(
         dbname=os.getenv('POSTGRES_DB'),
@@ -105,9 +105,11 @@ def write_to_database(data: pd.DataFrame, column_mapping: dict):
             if pd.notna(value):
                 # Convert NumPy types to native Python types
                 value = value.item() if isinstance(value, np.generic) else value
+                # Determine the table based on the column type
+                table_name = 'test_data' if 'derived' in details else 'macro_data'
                 cursor.execute(
-                    """
-                    INSERT INTO macro_data (id, date, long_name, value)
+                    f"""
+                    INSERT INTO {table_name} (id, date, long_name, value)
                     VALUES (%s, %s, %s, %s)
                     ON CONFLICT (id, date) DO UPDATE
                     SET value = EXCLUDED.value;
@@ -128,13 +130,13 @@ def main():
 
     # Load the column mapping from the JSON file
     with open('data_fetchers/shiller_cols.json', 'r') as f:
-        column_mapping = json.load(f)['raw_data']
+        column_mapping = json.load(f)
 
     # Apply load_shiller_cape_data to the provided URL
     cape_data = load_shiller_cape_data(file_url)
 
-    # Write the raw columns to the database
-    write_to_database(cape_data, column_mapping)
+    # Write the raw and derived columns to the database
+    write_to_database(cape_data, {**column_mapping['raw_data'], **column_mapping['derived']})
 
 if __name__ == "__main__":
     main()

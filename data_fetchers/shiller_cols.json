@@ -33,55 +33,55 @@
             "description": "Date Fraction"
         },
         "Real Price": {
-            "id": "real_price",
-            "long_name": "Real Price"
+            "id": "r_sp_price",
+            "long_name": "Real S&P Composite Price"
         },
         "Real Dividend": {
-            "id": "real_dividend",
-            "long_name": "Real Dividend"
+            "id": "r_sp_div",
+            "long_name": "Real S&P Composite Dividend"
         },
         "Real Total Return Price": {
-            "id": "real_total_return_price",
+            "id": "r_totret_price",
             "long_name": "Real Total Return Price"
         },
         "Real Earnings": {
-            "id": "real_earnings",
-            "long_name": "Real Earnings"
+            "id": "r_sp_earn",
+            "long_name": "Real S&P Composite Earnings"
         },
         "Real TR Scaled Earnings": {
-            "id": "real_tr_scaled_earnings",
-            "long_name": "Real Total Return Scaled Earnings"
+            "id": "r_tr_sc_earn",
+            "long_name": "Real S&P Composite Total Return Scaled Earnings"
         },
         "Cyclically Adjusted Price Earnings Ratio P/E10 or CAPE": {
-            "id": "cape",
-            "long_name": "Cyclically Adjusted Price Earnings Ratio (CAPE)"
+            "id": "sp_cape",
+            "long_name": "Cyclically Adjusted S&P Composite Price Earnings Ratio (CAPE)"
         },
         "Cyclically Adjusted Total Return Price Earnings Ratio TR P/E10 or TR CAPE": {
-            "id": "tr_cape",
-            "long_name": "Cyclically Adjusted Total Return Price Earnings Ratio (TR CAPE)"
+            "id": "sp_tr_cape",
+            "long_name": "Cyclically Adjusted S&P Composite Total Return Price Earnings Ratio (TR CAPE)"
         },
         "Excess CAPE Yield": {
-            "id": "excess_cape_yield",
-            "long_name": "Excess CAPE Yield"
+            "id": "sp_exc_cape_yield",
+            "long_name": "Excess S&P Composite CAPE Yield"
         },
         "Monthly Total Bond Returns": {
-            "id": "monthly_total_bond_returns",
+            "id": "m_tot_bond_ret",
             "long_name": "Monthly Total Bond Returns"
         },
         "Real Total Bond Returns": {
-            "id": "real_total_bond_returns",
+            "id": "r_tot_bond_ret",
             "long_name": "Real Total Bond Returns"
         },
         "10 Year Annualized Stock Real Return": {
-            "id": "annualized_stock_real_return",
+            "id": "r_ann_stock_ret",
             "long_name": "10-Year Annualized Stock Real Return"
         },
         "10 Year Annualized Bonds Real Return": {
-            "id": "annualized_bonds_real_return",
+            "id": "r_ann_bonds_ret",
             "long_name": "10-Year Annualized Bonds Real Return"
         },
         "Real 10 Year Excess Annualized Returns": {
-            "id": "real_10_year_excess_annualized_returns",
+            "id": "r_10y_exc_ann_ret",
             "long_name": "Real 10-Year Excess Annualized Returns"
         }
     }
