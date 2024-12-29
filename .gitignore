@@ -96,3 +96,6 @@ venv.bak/
 
 # Data
 data/
+
+# Scrap notebook
+notebooks/scrap.ipynb
