@@ -1,0 +1,88 @@
+{
+    "raw_data": {
+        "S&P Comp. P": {
+            "id": "sp_comp_price",
+            "long_name": "S&P Composite Price",
+            "description": "S&P Composite Price"
+        },
+        "Dividend D": {
+            "id": "sp_comp_div",
+            "long_name": "S&P Composite Dividend",
+            "description": "S&P Composite Dividend"
+        },
+        "Earnings E": {
+            "id": "sp_comp_earn",
+            "long_name": "S&P Composite Earnings",
+            "description": "S&P Composite Earnings"
+        },
+        "Consumer Price Index CPI": {
+            "id": "cpi",
+            "long_name": "Consumer Price Index",
+            "description": "Consumer Price Index"
+        },
+        "Long Interest Rate GS10": {
+            "id": "rate_gs10",
+            "long_name": "10-Year Government Bond Rate",
+            "description": "10-Year Government Bond Rate"
+        }
+    },
+    "derived": {
+        "Date Fraction": {
+            "id": "date_fraction",
+            "long_name": "Date Fraction",
+            "description": "Date Fraction"
+        },
+        "Real Price": {
+            "id": "real_price",
+            "long_name": "Real Price"
+        },
+        "Real Dividend": {
+            "id": "real_dividend",
+            "long_name": "Real Dividend"
+        },
+        "Real Total Return Price": {
+            "id": "real_total_return_price",
+            "long_name": "Real Total Return Price"
+        },
+        "Real Earnings": {
+            "id": "real_earnings",
+            "long_name": "Real Earnings"
+        },
+        "Real TR Scaled Earnings": {
+            "id": "real_tr_scaled_earnings",
+            "long_name": "Real Total Return Scaled Earnings"
+        },
+        "Cyclically Adjusted Price Earnings Ratio P/E10 or CAPE": {
+            "id": "cape",
+            "long_name": "Cyclically Adjusted Price Earnings Ratio (CAPE)"
+        },
+        "Cyclically Adjusted Total Return Price Earnings Ratio TR P/E10 or TR CAPE": {
+            "id": "tr_cape",
+            "long_name": "Cyclically Adjusted Total Return Price Earnings Ratio (TR CAPE)"
+        },
+        "Excess CAPE Yield": {
+            "id": "excess_cape_yield",
+            "long_name": "Excess CAPE Yield"
+        },
+        "Monthly Total Bond Returns": {
+            "id": "monthly_total_bond_returns",
+            "long_name": "Monthly Total Bond Returns"
+        },
+        "Real Total Bond Returns": {
+            "id": "real_total_bond_returns",
+            "long_name": "Real Total Bond Returns"
+        },
+        "10 Year Annualized Stock Real Return": {
+            "id": "annualized_stock_real_return",
+            "long_name": "10-Year Annualized Stock Real Return"
+        },
+        "10 Year Annualized Bonds Real Return": {
+            "id": "annualized_bonds_real_return",
+            "long_name": "10-Year Annualized Bonds Real Return"
+        },
+        "Real 10 Year Excess Annualized Returns": {
+            "id": "real_10_year_excess_annualized_returns",
+            "long_name": "Real 10-Year Excess Annualized Returns"
+        }
+    }
+}

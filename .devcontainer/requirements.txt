@@ -5,4 +5,5 @@ numpy
 psycopg2-binary
 scikit-learn
 seaborn
+xlrd
 yfinance
