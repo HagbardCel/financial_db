@@ -99,14 +99,14 @@ def write_to_database(data: pd.DataFrame, column_mapping: dict):
 
     for date, row in data.iterrows():
         for raw_col, details in column_mapping.items():
-            long_name = details['long_name']  # Use the long_name from the JSON
-            column_id = details['id']  # Use the id from the JSON
+            long_name = details['long_name']
+            column_id = details['id']
             value = row[raw_col]
             if pd.notna(value):
                 # Convert NumPy types to native Python types
                 value = value.item() if isinstance(value, np.generic) else value
-                # Determine the table based on the column type
-                table_name = 'test_data' if 'derived' in details else 'macro_data'
+                # Determine the table based on the type field
+                table_name = 'test_data' if details['type'] == 'derived' else 'macro_data'
                 cursor.execute(
                     f"""
                     INSERT INTO {table_name} (id, date, long_name, value)
@@ -130,13 +130,13 @@ def main():
 
     # Load the column mapping from the JSON file
     with open('data_fetchers/shiller_cols.json', 'r') as f:
-        column_mapping = json.load(f)
+        column_mapping = json.load(f)  # No need to access ['raw_data'] anymore
 
     # Apply load_shiller_cape_data to the provided URL
     cape_data = load_shiller_cape_data(file_url)
 
     # Write the raw and derived columns to the database
-    write_to_database(cape_data, {**column_mapping['raw_data'], **column_mapping['derived']})
+    write_to_database(cape_data, column_mapping)
 
 if __name__ == "__main__":
     main()

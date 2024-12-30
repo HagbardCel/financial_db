@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS macro_data (
     id VARCHAR(18) NOT NULL,
     date DATE NOT NULL,
     long_name VARCHAR(80) NOT NULL,
-    value NUMERIC(16, 2),
+    value NUMERIC,
     PRIMARY KEY (id, date)
 );
 
@@ -34,6 +34,6 @@ CREATE TABLE IF NOT EXISTS test_data (
     id VARCHAR(18) NOT NULL,
     date DATE NOT NULL,
     long_name VARCHAR(80) NOT NULL,
-    value NUMERIC(16, 2),
+    value NUMERIC,
     PRIMARY KEY (id, date)
 );

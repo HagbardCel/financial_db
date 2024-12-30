@@ -1,88 +1,103 @@
 {
-    "raw_data": {
-        "S&P Comp. P": {
-            "id": "sp_comp_price",
-            "long_name": "S&P Composite Price",
-            "description": "S&P Composite Price"
-        },
-        "Dividend D": {
-            "id": "sp_comp_div",
-            "long_name": "S&P Composite Dividend",
-            "description": "S&P Composite Dividend"
-        },
-        "Earnings E": {
-            "id": "sp_comp_earn",
-            "long_name": "S&P Composite Earnings",
-            "description": "S&P Composite Earnings"
-        },
-        "Consumer Price Index CPI": {
-            "id": "cpi",
-            "long_name": "Consumer Price Index",
-            "description": "Consumer Price Index"
-        },
-        "Long Interest Rate GS10": {
-            "id": "rate_gs10",
-            "long_name": "10-Year Government Bond Rate",
-            "description": "10-Year Government Bond Rate"
-        }
+    "S&P Comp. P": {
+        "id": "sp_comp_price",
+        "long_name": "S&P Composite Price",
+        "description": "S&P Composite Price",
+        "type": "raw_data"
     },
-    "derived": {
-        "Date Fraction": {
-            "id": "date_fraction",
-            "long_name": "Date Fraction",
-            "description": "Date Fraction"
-        },
-        "Real Price": {
-            "id": "r_sp_price",
-            "long_name": "Real S&P Composite Price"
-        },
-        "Real Dividend": {
-            "id": "r_sp_div",
-            "long_name": "Real S&P Composite Dividend"
-        },
-        "Real Total Return Price": {
-            "id": "r_totret_price",
-            "long_name": "Real Total Return Price"
-        },
-        "Real Earnings": {
-            "id": "r_sp_earn",
-            "long_name": "Real S&P Composite Earnings"
-        },
-        "Real TR Scaled Earnings": {
-            "id": "r_tr_sc_earn",
-            "long_name": "Real S&P Composite Total Return Scaled Earnings"
-        },
-        "Cyclically Adjusted Price Earnings Ratio P/E10 or CAPE": {
-            "id": "sp_cape",
-            "long_name": "Cyclically Adjusted S&P Composite Price Earnings Ratio (CAPE)"
-        },
-        "Cyclically Adjusted Total Return Price Earnings Ratio TR P/E10 or TR CAPE": {
-            "id": "sp_tr_cape",
-            "long_name": "Cyclically Adjusted S&P Composite Total Return Price Earnings Ratio (TR CAPE)"
-        },
-        "Excess CAPE Yield": {
-            "id": "sp_exc_cape_yield",
-            "long_name": "Excess S&P Composite CAPE Yield"
-        },
-        "Monthly Total Bond Returns": {
-            "id": "m_tot_bond_ret",
-            "long_name": "Monthly Total Bond Returns"
-        },
-        "Real Total Bond Returns": {
-            "id": "r_tot_bond_ret",
-            "long_name": "Real Total Bond Returns"
-        },
-        "10 Year Annualized Stock Real Return": {
-            "id": "r_ann_stock_ret",
-            "long_name": "10-Year Annualized Stock Real Return"
-        },
-        "10 Year Annualized Bonds Real Return": {
-            "id": "r_ann_bonds_ret",
-            "long_name": "10-Year Annualized Bonds Real Return"
-        },
-        "Real 10 Year Excess Annualized Returns": {
-            "id": "r_10y_exc_ann_ret",
-            "long_name": "Real 10-Year Excess Annualized Returns"
-        }
+    "Dividend D": {
+        "id": "sp_comp_div", 
+        "long_name": "S&P Composite Dividend",
+        "description": "S&P Composite Dividend",
+        "type": "raw_data"
+    },
+    "Earnings E": {
+        "id": "sp_comp_earn",
+        "long_name": "S&P Composite Earnings",
+        "description": "S&P Composite Earnings",
+        "type": "raw_data"
+    },
+    "Consumer Price Index CPI": {
+        "id": "cpi",
+        "long_name": "Consumer Price Index",
+        "description": "Consumer Price Index",
+        "type": "raw_data"
+    },
+    "Long Interest Rate GS10": {
+        "id": "rate_gs10",
+        "long_name": "10-Year Government Bond Rate",
+        "description": "10-Year Government Bond Rate",
+        "type": "raw_data"
+    },
+    "Date Fraction": {
+        "id": "date_fraction",
+        "long_name": "Date Fraction",
+        "description": "Date Fraction",
+        "type": "derived"
+    },
+    "Real Price": {
+        "id": "r_sp_price",
+        "long_name": "Real S&P Composite Price",
+        "type": "derived"
+    },
+    "Real Dividend": {
+        "id": "r_sp_div",
+        "long_name": "Real S&P Composite Dividend",
+        "type": "derived"
+    },
+    "Real Total Return Price": {
+        "id": "r_totret_price",
+        "long_name": "Real Total Return Price",
+        "type": "derived"
+    },
+    "Real Earnings": {
+        "id": "r_sp_earn",
+        "long_name": "Real S&P Composite Earnings",
+        "type": "derived"
+    },
+    "Real TR Scaled Earnings": {
+        "id": "r_tr_sc_earn",
+        "long_name": "Real S&P Composite Total Return Scaled Earnings",
+        "type": "derived"
+    },
+    "Cyclically Adjusted Price Earnings Ratio P/E10 or CAPE": {
+        "id": "sp_cape",
+        "long_name": "Cyclically Adjusted S&P Composite Price Earnings Ratio (CAPE)",
+        "type": "derived"
+    },
+    "Cyclically Adjusted Total Return Price Earnings Ratio TR P/E10 or TR CAPE": {
+        "id": "sp_tr_cape",
+        "long_name": "Cyclically Adjusted S&P Composite Total Return Price Earnings Ratio (TR CAPE)",
+        "type": "derived"
+    },
+    "Excess CAPE Yield": {
+        "id": "sp_exc_cape_yield",
+        "long_name": "Excess S&P Composite CAPE Yield",
+        "type": "derived"
+    },
+    "Monthly Total Bond Returns": {
+        "id": "m_tot_bond_ret",
+        "long_name": "Monthly Total Bond Returns",
+        "type": "derived"
+    },
+    "Real Total Bond Returns": {
+        "id": "r_tot_bond_ret",
+        "long_name": "Real Total Bond Returns",
+        "type": "derived"
+    },
+    "10 Year Annualized Stock Real Return": {
+        "id": "r_ann_stock_ret",
+        "long_name": "10-Year Annualized Stock Real Return",
+        "type": "derived"
+    },
+    "10 Year Annualized Bonds Real Return": {
+        "id": "r_ann_bonds_ret",
+        "long_name": "10-Year Annualized Bonds Real Return",
+        "type": "derived"
+    },
+    "Real 10 Year Excess Annualized Returns": {
+        "id": "r_10y_exc_ann_ret",
+        "long_name": "Real 10-Year Excess Annualized Returns",
+        "type": "derived"
     }
 }
