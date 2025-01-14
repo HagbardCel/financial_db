@@ -2,6 +2,7 @@
 import pandas as pd
 import pandas_datareader.data as web
 from datetime import datetime
+from db_utils.database import DatabaseConnection
 
 def fetch_treasury_rates(start_date=datetime(1934, 1, 1), end_date=datetime.now()):
     """
@@ -82,13 +83,20 @@ def write_treasury_rates_to_db(rates_df):
         # Convert to DataFrame for bulk insertion
         df_to_insert = pd.DataFrame(records)
         
-        # Insert into database
-        with DatabaseConnection() as conn:
-            df_to_insert.to_sql('interest_rates', 
-                              conn, 
-                              if_exists='append', 
-                              index=False,
-                              method='multi')
+        # Insert into database using DatabaseConnection
+        with DatabaseConnection() as db:
+            db.write_data(
+                data=df_to_insert,
+                table_name='interest_rates',
+                value_mapping={
+                    'date': 'date',
+                    'region': 'region',
+                    'rate_type': 'rate_type',
+                    'maturity': 'maturity',
+                    'interest_rate': 'interest_rate',
+                    'currency': 'currency'
+                }
+            )
     else:
         print("No valid rates data to insert")
 

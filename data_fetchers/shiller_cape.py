@@ -6,7 +6,7 @@ import requests
 import pandas as pd
 import numpy as np
 from pandas.tseries.offsets import MonthEnd
-import psycopg2
+from db_utils.database import DatabaseConnection
 import json
 
 def download_file(file_url: str, save_as: str) -> None:
@@ -87,39 +87,38 @@ def load_shiller_cape_data(file_url: str) -> pd.DataFrame:
 
 def write_to_database(data: pd.DataFrame, column_mapping: dict):
     """Write raw and derived columns to the appropriate tables in the database."""
-    # Database connection parameters
-    conn = psycopg2.connect(
-        dbname=os.getenv('POSTGRES_DB'),
-        user=os.getenv('POSTGRES_USER'),
-        password=os.getenv('POSTGRES_PASSWORD'),
-        host=os.getenv('POSTGRES_HOST', 'localhost'),
-        port=os.getenv('POSTGRES_PORT', '5432')
-    )
-    cursor = conn.cursor()
-
+    # Prepare data for macro_data and test_data tables
+    records = []
     for date, row in data.iterrows():
         for raw_col, details in column_mapping.items():
-            long_name = details['long_name']
-            column_id = details['id']
             value = row[raw_col]
             if pd.notna(value):
-                # Convert NumPy types to native Python types
-                value = value.item() if isinstance(value, np.generic) else value
-                # Determine the table based on the type field
-                table_name = 'test_data' if details['type'] == 'derived' else 'macro_data'
-                cursor.execute(
-                    f"""
-                    INSERT INTO {table_name} (id, date, long_name, value)
-                    VALUES (%s, %s, %s, %s)
-                    ON CONFLICT (id, date) DO UPDATE
-                    SET value = EXCLUDED.value;
-                    """,
-                    (column_id, date, long_name, value)
-                )
-
-    conn.commit()
-    cursor.close()
-    conn.close()
+                records.append({
+                    'date': date,
+                    'id': details['id'],
+                    'long_name': details['long_name'],
+                    'value': value,
+                    'type': details['type']
+                })
+    
+    # Convert records to DataFrame
+    df = pd.DataFrame(records)
+    
+    # Split data into macro and test data
+    macro_data = df[df['type'] != 'derived'].drop('type', axis=1)
+    test_data = df[df['type'] == 'derived'].drop('type', axis=1)
+    
+    with DatabaseConnection() as db:
+        if not macro_data.empty:
+            db.write_data(
+                data=macro_data,
+                table_name='macro_data'
+            )
+        if not test_data.empty:
+            db.write_data(
+                data=test_data,
+                table_name='test_data'
+            )
 
 def main():
     if len(sys.argv) != 2:

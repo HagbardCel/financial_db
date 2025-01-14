@@ -7,13 +7,13 @@ CREATE TABLE IF NOT EXISTS assets_prices (
 );
 
 CREATE TABLE IF NOT EXISTS interest_rates (
-    record_id SERIAL PRIMARY KEY,
     date DATE NOT NULL,
     region VARCHAR(50) NOT NULL,
     rate_type VARCHAR(50) NOT NULL,
     maturity VARCHAR(20) NOT NULL,
     interest_rate NUMERIC(10, 4) NOT NULL,
-    currency VARCHAR(10) NOT NULL
+    currency VARCHAR(10) NOT NULL,
+    PRIMARY KEY (date, region, maturity, currency)
 );
 
 CREATE TABLE IF NOT EXISTS indices (
