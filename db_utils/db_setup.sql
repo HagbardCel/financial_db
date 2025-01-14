@@ -6,12 +6,14 @@ CREATE TABLE IF NOT EXISTS assets_prices (
     PRIMARY KEY (id, date)
 );
 
-CREATE TABLE IF NOT EXISTS bonds_data (
-    id VARCHAR(10) NOT NULL,
+CREATE TABLE IF NOT EXISTS interest_rates (
+    record_id SERIAL PRIMARY KEY,
     date DATE NOT NULL,
-    bond_type VARCHAR(50) NOT NULL,
-    yield NUMERIC(10, 4),
-    price NUMERIC(10, 2)
+    region VARCHAR(50) NOT NULL,
+    rate_type VARCHAR(50) NOT NULL,
+    maturity VARCHAR(20) NOT NULL,
+    interest_rate NUMERIC(10, 4) NOT NULL,
+    currency VARCHAR(10) NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS indices (
