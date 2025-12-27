@@ -1,0 +1,24 @@
+[project]
+name = "financial-db"
+version = "0.1.0"
+description = "Personal financial data management system with PostgreSQL"
+requires-python = ">=3.9"
+dependencies = [
+    "jupyterlab",
+    "pandas",
+    "pandas-datareader",
+    "matplotlib",
+    "numpy",
+    "psycopg2-binary",
+    "scikit-learn",
+    "seaborn",
+    "xlrd",
+    "yfinance",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+dev-dependencies = []

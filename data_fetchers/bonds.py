@@ -3,6 +3,7 @@ import pandas as pd
 import pandas_datareader.data as web
 from datetime import datetime
 from db_utils.database import DatabaseConnection
+from db_utils.config import get_database_config
 
 def fetch_treasury_rates(start_date=datetime(1934, 1, 1), end_date=datetime.now()):
     """
@@ -84,7 +85,7 @@ def write_treasury_rates_to_db(rates_df):
         df_to_insert = pd.DataFrame(records)
         
         # Insert into database using DatabaseConnection
-        with DatabaseConnection() as db:
+        with DatabaseConnection(config=get_database_config()) as db:
             db.write_data(
                 data=df_to_insert,
                 table_name='interest_rates',

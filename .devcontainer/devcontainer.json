@@ -4,7 +4,7 @@
 	"name": "Docker-compose db",
 	"dockerComposeFile": "docker-compose.yml",
 	"service": "devcontainer",
-	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+	"workspaceFolder": "/workspaces/financial_db",
 
 	// Use this environment variable if you need to bind mount your local source code into a new container.
 	"remoteEnv": {
@@ -34,8 +34,8 @@
 	// "forwardPorts": [],
 
 	// Use 'postCreateCommand' to run commands after the container is created.
-	"postCreateCommand": "docker --version && whoami && ls -l /var/run/docker-host.sock"
+	"postCreateCommand": "docker --version && whoami && ls -l /var/run/docker-host.sock",
 
-	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
-	// "remoteUser": "root"
+	// Connect as the standard vscode user.
+	"remoteUser": "vscode"
 }

@@ -7,28 +7,21 @@ services:
 
     env_file: .env
 
-    build: 
-      context: .
-      dockerfile: Dockerfile
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
 
     networks:
       - shared_network
 
     volumes:
       # Forwards the local Docker socket to the container.
-      - /var/run/docker.sock:/var/run/docker-host.sock 
+      - /var/run/docker.sock:/var/run/docker-host.sock
       # Update this to wherever you want VS Code to mount the folder of your project
-      - ../..:/workspaces:cached
+      - ..:/workspaces/financial_db:cached
 
     # Overrides default command so things don't shut down after the process ends.
-    command:
-      sh -c "
-       sudo chown root:docker /var/run/docker-host.sock &&
-       sudo chown root:docker /var/run/docker.sock &&
-       sudo chmod 660 /var/run/docker-host.sock &&
-       sudo chmod 660 /var/run/docker.sock &&
-       sleep infinity"
-
+    command: /bin/sh -c "while sleep 1000; do :; done"
     # Use "forwardPorts" in **devcontainer.json** to forward an app port locally. 
     # (Adding the "ports" property to this file will not forward from a Codespace.)
   db:

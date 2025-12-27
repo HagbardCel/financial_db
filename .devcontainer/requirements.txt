@@ -1,5 +1,6 @@
 jupyterlab
 pandas
+pandas-datareader
 matplotlib
 numpy
 psycopg2-binary

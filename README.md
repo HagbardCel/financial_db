@@ -1,16 +1,25 @@
 # Financial Data Local Database
 
 ## Overview
-This repository is a personal project designed to set up a local database for financial data on a laptop. The database is hosted in a Docker container, providing a convenient and isolated environment for data management. The repository primarily contains Python code that offers functions to update the database with the latest financial data from Yahoo Finance and other sources.
+This repository provides a robust setup for managing financial data locally using Docker and PostgreSQL. It includes a pipeline for fetching data from major sources (like Yahoo Finance and FRED) and tools for computing advanced financial metrics.
+
+## Documentation
+-   **[Architecture Overview](doc/architecture.md)**: High-level system design and components.
+-   **[Database Schema](doc/database.md)**: Detailed breakdown of tables and views.
+-   **[Development Guide](doc/development.md)**: Setup instructions and workflows.
 
 ## Features
-- Local database setup using Docker for easy deployment and management
-- Python scripts to fetch and update financial data from various sources
-- Modular code structure for easy maintenance and future enhancements
+-   **Containerized Environment**: Fully isolated setup using Docker.
+-   **Automated Ingestion**: Scripts to specific fetch financial data.
+-   **Advanced Analytics**: SQL-based computation of derived metrics (e.g., CAPE).
+-   **Modern Tooling**: Uses `uv` for fast package management.
 
-## Getting Started
-To get started with this project, ensure you have Docker installed on your machine. Follow the setup instructions in the documentation to initialize the database and run the Python scripts to populate it with financial data.
+## Quick Start
+1.  Clone the repository.
+2.  Open in VS Code and reopen in Devcontainer.
+3.  Initialize the database: `python db_utils/db_setup.py`
+4.  Run a fetcher: `python data_fetchers/bonds.py`
 
 ## License
-This project is for personal use and is not intended for public distribution or contributions at this time.
+Personal use only. Not for public distribution.
 

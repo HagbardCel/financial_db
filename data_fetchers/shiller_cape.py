@@ -7,6 +7,7 @@ import pandas as pd
 import numpy as np
 from pandas.tseries.offsets import MonthEnd
 from db_utils.database import DatabaseConnection
+from db_utils.config import get_database_config
 import json
 
 def download_file(file_url: str, save_as: str) -> None:
@@ -108,7 +109,7 @@ def write_to_database(data: pd.DataFrame, column_mapping: dict):
     macro_data = df[df['type'] != 'derived'].drop('type', axis=1)
     test_data = df[df['type'] == 'derived'].drop('type', axis=1)
     
-    with DatabaseConnection() as db:
+    with DatabaseConnection(config=get_database_config()) as db:
         if not macro_data.empty:
             db.write_data(
                 data=macro_data,

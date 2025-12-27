@@ -1,25 +1,58 @@
-# Note: You can use any Debian/Ubuntu based image you want. 
+# syntax=docker/dockerfile:1.4
+# Note: You can use any Debian/Ubuntu based image you want.
 FROM mcr.microsoft.com/devcontainers/base:bullseye
 
-# [Optional] Uncomment this section to install additional OS packages.
+# ============================================================================
+# LAYER 1: System packages (rarely change - good for caching)
+# ============================================================================
 RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
-    && apt-get -y install --no-install-recommends python3 python3-pip
+    && apt-get -y install --no-install-recommends \
+    python3 \
+    python3-pip \
+    curl \
+    ca-certificates \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# Create a non-root user
-RUN useradd -m -s /bin/bash devuser
+# ============================================================================
+# LAYER 1.5: Install uv (fast Python package manager)
+# ============================================================================
+RUN pip3 install uv
 
-# Add the user to the docker group
-RUN groupadd docker || true && usermod -aG docker devuser
+# ============================================================================
+# LAYER 2: Python dependencies (change occasionally - use cache mount)
+# ============================================================================
+# Copy dependency files first to leverage Docker layer caching
+COPY --chown=root:root pyproject.toml /tmp/
+# We use a glob for the lock file so the build doesn't fail if it's missing
+COPY --chown=root:root uv.lock* /tmp/
 
-# Add devuser to sudoers with no password
-RUN echo "devuser ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+# Install Python packages with BuildKit cache mount for uv
+# This speeds up rebuilds significantly by caching downloaded packages
+# Using --system to install into system Python (no venv in container)
+# We use --no-install-project because the source code isn't copied yet (to keep the image slim/cacheable)
+RUN --mount=type=cache,target=/root/.cache/uv \
+    cd /tmp && \
+    (uv sync --frozen --no-dev --system --no-install-project 2>/dev/null || \
+    uv sync --no-dev --system --no-install-project 2>/dev/null || \
+    uv pip install --system -r pyproject.toml) \
+    && rm -f /tmp/pyproject.toml /tmp/uv.lock
 
-# Set the user to the new non-root user
-USER devuser
+# = ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+# LAYER 3: User configuration (The 'vscode' user already exists in base image)
+# = ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+# We ensure the vscode user is in the docker group
+RUN groupadd docker || true \
+    && usermod -aG docker vscode
 
-# Set the working directory
-WORKDIR /home/devuser
+# ============================================================================
+# LAYER 4: Environment and runtime configuration
+# ============================================================================
+# Set PYTHONPATH to include project root in the container
+ENV PYTHONPATH=/workspaces/financial_db:${PYTHONPATH}
 
-# Copy the requirements file and install dependencies as the non-root user
-COPY --chown=devuser:devuser requirements.txt /tmp/
-RUN pip3 install --user -r /tmp/requirements.txt
+# Use the standard vscode user
+USER vscode
+
+# Set the working directory to the project folder
+WORKDIR /workspaces/financial_db

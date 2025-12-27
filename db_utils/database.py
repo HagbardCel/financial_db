@@ -1,49 +1,37 @@
 #!/usr/bin/env python3
 
-import os
 import psycopg2
 import pandas as pd
 import numpy as np
 from typing import Dict, Any, List, Tuple, Optional
+from .schemas import get_schema
+from .config import get_database_config
 
 class DatabaseConnection:
-    # Table schemas defining columns and primary keys for each table
-    TABLE_SCHEMAS = {
-        'assets_prices': {
-            'columns': ['id', 'date', 'price_usd'],
-            'primary_keys': ['id', 'date']
-        },
-        'interest_rates': {
-            'columns': ['date', 'region', 'rate_type', 'maturity', 'interest_rate', 'currency'],
-            'primary_keys': ['date', 'region', 'maturity', 'currency']
-        },
-        'indices': {
-            'columns': ['id', 'date', 'index_name', 'value'],
-            'primary_keys': ['id', 'date']
-        },
-        'macro_data': {
-            'columns': ['id', 'date', 'long_name', 'value'],
-            'primary_keys': ['id', 'date']
-        },
-        'test_data': {
-            'columns': ['id', 'date', 'long_name', 'value'],
-            'primary_keys': ['id', 'date']
-        }
-    }
-
-    def __init__(self):
+    def __init__(self, config: Optional[Dict[str, str]] = None):
+        """
+        Initialize the database connection.
+        
+        Args:
+            config: Optional dictionary with database connection parameters.
+                   If not provided, it will be read from environment variables.
+        """
+        self.config = config or get_database_config()
         self.conn = None
         self.cursor = None
 
     def connect(self):
-        """Establish database connection using environment variables."""
-        self.conn = psycopg2.connect(
-            dbname=os.getenv('POSTGRES_DB'),
-            user=os.getenv('POSTGRES_USER'),
-            password=os.getenv('POSTGRES_PASSWORD'),
-            host=os.getenv('POSTGRES_HOST', 'localhost'),
-            port=os.getenv('POSTGRES_PORT', '5432')
-        )
+        """Establish database connection using the provided configuration."""
+        if not self.config:
+            raise ValueError("Database configuration not provided")
+        
+        # Ensure all required keys are present (basic validation)
+        required_keys = ['dbname', 'user', 'password']
+        missing_keys = [k for k in required_keys if not self.config.get(k)]
+        if missing_keys:
+            raise ValueError(f"Missing required database config keys: {', '.join(missing_keys)}")
+
+        self.conn = psycopg2.connect(**self.config)
         self.cursor = self.conn.cursor()
 
     def disconnect(self):
@@ -73,14 +61,8 @@ class DatabaseConnection:
             data: DataFrame containing the data to write
             table_name: Name of the target table
             value_mapping: Optional dictionary mapping DataFrame columns to table columns
-        
-        Raises:
-            ValueError: If table_name is not found in TABLE_SCHEMAS
         """
-        if table_name not in self.TABLE_SCHEMAS:
-            raise ValueError(f"Unknown table: {table_name}. Must be one of {list(self.TABLE_SCHEMAS.keys())}")
-
-        schema = self.TABLE_SCHEMAS[table_name]
+        schema = get_schema(table_name)
         columns = schema['columns']
         primary_keys = schema['primary_keys']
 
