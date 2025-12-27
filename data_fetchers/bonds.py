@@ -2,112 +2,59 @@
 import pandas as pd
 import pandas_datareader.data as web
 from datetime import datetime
-from db_utils.database import DatabaseConnection
+from data_fetchers.base_fetcher import BaseFetcher
 from db_utils.config import get_database_config
 
-def fetch_treasury_rates(start_date=datetime(1934, 1, 1), end_date=datetime.now()):
-    """
-    Fetches historical treasury rates for various maturities from FRED.
-    Returns a DataFrame with rates for all available treasury durations.
-    
-    Parameters:
-    -----------
-    start_date : datetime, optional
-        Start date for data retrieval. Defaults to 1934-01-01 (earliest available data)
-    end_date : datetime, optional
-        End date for data retrieval. Defaults to current date
-        
-    Returns:
-    --------
-    pandas.DataFrame
-        DataFrame containing treasury rates for different maturities
-    """
-    # Treasury rate series IDs from FRED
-    series_ids = {
-        '1M': 'DGS1MO',    # 1-Month Treasury Bill
-        '3M': 'DTB3',      # 3-Month Treasury Bill
-        '6M': 'DTB6',      # 6-Month Treasury Bill
-        '1Y': 'DGS1',      # 1-Year Treasury Rate
-        '2Y': 'DGS2',      # 2-Year Treasury Rate
-        '3Y': 'DGS3',      # 3-Year Treasury Rate
-        '5Y': 'DGS5',      # 5-Year Treasury Rate
-        '7Y': 'DGS7',      # 7-Year Treasury Rate
-        '10Y': 'DGS10',    # 10-Year Treasury Rate
-        '20Y': 'DGS20',    # 20-Year Treasury Rate
-        '30Y': 'DGS30'     # 30-Year Treasury Rate
-    }
-    
-    # Fetch data for each maturity
-    df_list = []
-    for maturity, series_id in series_ids.items():
-        try:
-            df = web.DataReader(series_id, 'fred', start_date, end_date)
-            df.columns = [maturity]
-            df_list.append(df)
-        except Exception as e:
-            print(f"Error fetching {maturity} treasury rate: {e}")
-    
-    # Combine all rates into a single DataFrame
-    if df_list:
-        rates_df = pd.concat(df_list, axis=1)
-        rates_df.index = pd.to_datetime(rates_df.index)
-        return rates_df
-    else:
-        raise Exception("Failed to fetch any treasury rates")
+class TreasuryFetcher(BaseFetcher):
+    def __init__(self, start_date=datetime(1934, 1, 1), end_date=None, db_config=None):
+        super().__init__(db_config)
+        self.start_date = start_date
+        self.end_date = end_date or datetime.now()
+        self.series_ids = {
+            '1M': 'DGS1MO', '3M': 'DTB3', '6M': 'DTB6',
+            '1Y': 'DGS1', '2Y': 'DGS2', '3Y': 'DGS3',
+            '5Y': 'DGS5', '7Y': 'DGS7', '10Y': 'DGS10',
+            '20Y': 'DGS20', '30Y': 'DGS30'
+        }
 
-def write_treasury_rates_to_db(rates_df):
-    """
-    Writes treasury rates data to the interest_rates table in the database.
-    
-    Parameters:
-    -----------
-    rates_df : pandas.DataFrame
-        DataFrame containing treasury rates for different maturities
-    """
-    # Prepare data for database insertion
-    records = []
-    
-    for date in rates_df.index:
-        for maturity in rates_df.columns:
-            rate = rates_df.loc[date, maturity]
-            if pd.notna(rate):  # Only insert non-null values
-                records.append({
-                    'date': date.date(),
-                    'region': 'US',
-                    'rate_type': 'Treasury',
-                    'maturity': maturity,
-                    'interest_rate': float(rate),
-                    'currency': 'USD'
-                })
-    
-    if records:
-        # Convert to DataFrame for bulk insertion
-        df_to_insert = pd.DataFrame(records)
-        
-        # Insert into database using DatabaseConnection
-        with DatabaseConnection(config=get_database_config()) as db:
-            db.write_data(
-                data=df_to_insert,
-                table_name='interest_rates',
-                value_mapping={
-                    'date': 'date',
-                    'region': 'region',
-                    'rate_type': 'rate_type',
-                    'maturity': 'maturity',
-                    'interest_rate': 'interest_rate',
-                    'currency': 'currency'
-                }
-            )
-    else:
-        print("No valid rates data to insert")
+    def fetch(self) -> dict:
+        """Fetches historical treasury rates for various maturities from FRED."""
+        data = {}
+        for maturity, series_id in self.series_ids.items():
+            try:
+                df = web.DataReader(series_id, 'fred', self.start_date, self.end_date)
+                data[maturity] = df
+            except Exception as e:
+                print(f"Error fetching {maturity} treasury rate: {e}")
+        return data
+
+    def transform(self, raw_data: dict) -> pd.DataFrame:
+        """Transform multiple FRED series into a single long-format DataFrame."""
+        records = []
+        for maturity, df in raw_data.items():
+            for date, row in df.iterrows():
+                rate = row.iloc[0]
+                if pd.notna(rate):
+                    records.append({
+                        'date': date.date(),
+                        'region': 'US',
+                        'rate_type': 'Treasury',
+                        'maturity': maturity,
+                        'interest_rate': float(rate),
+                        'currency': 'USD'
+                    })
+        return pd.DataFrame(records)
+
+    def run_pipeline(self):
+        """Execute the fetch-transform-save pipeline for treasury rates."""
+        # Note: mapping is done in transform logic here, so no value_mapping needed for save
+        self.run(table_name='interest_rates')
 
 if __name__ == "__main__":
-    # Fetch treasury rates for the past year
-    from datetime import datetime, timedelta
+    from datetime import timedelta
     end_date = datetime.now()
     start_date = end_date - timedelta(days=365)
     
-    rates = fetch_treasury_rates(start_date, end_date)
-    write_treasury_rates_to_db(rates)
-    print("\nSample Treasury Rates:")
-    print(rates.tail())
+    fetcher = TreasuryFetcher(start_date=start_date, end_date=end_date, db_config=get_database_config())
+    fetcher.run_pipeline()
+    print("Done fetching and saving Treasury rates.")

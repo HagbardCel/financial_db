@@ -7,7 +7,7 @@
 			"platform": "python",
 			"dockerBuild": {
 				"tag": "financialdb:latest",
-				"dockerfile": "${workspaceFolder}/Dockerfile",
+				"dockerfile": "${workspaceFolder}/.devcontainer/Dockerfile",
 				"context": "${workspaceFolder}",
 				"pull": true
 			}
