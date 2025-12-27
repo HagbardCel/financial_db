@@ -1,12 +1,17 @@
-#!/usr/bin/env python3
-
 import sys
 import json
-import glob
 from pathlib import Path
+
+# Add project root to path so we can import packages like 'db_utils'
+project_root = Path(__file__).resolve().parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
+from db_utils.paths import PROJECT_ROOT
 
 def clean_notebook(notebook_path):
     """Remove all outputs from a Jupyter notebook."""
+    # Path objects can be passed directly to open()
     with open(notebook_path, 'r', encoding='utf-8') as f:
         notebook = json.load(f)
     
@@ -31,16 +36,16 @@ def clean_notebook(notebook_path):
 
 def main():
     """Clean all notebooks in the repository."""
-    # Find all notebook files
-    notebooks = glob.glob('**/*.ipynb', recursive=True)
+    # Use PROJECT_ROOT.rglob to find all notebooks regardless of CWD
+    notebooks = list(PROJECT_ROOT.rglob('*.ipynb'))
     
     # Filter out checkpoints
-    notebooks = [nb for nb in notebooks if '.ipynb_checkpoints' not in nb]
+    notebooks = [nb for nb in notebooks if '.ipynb_checkpoints' not in str(nb)]
     
     cleaned = 0
     for nb in notebooks:
         if clean_notebook(nb):
-            print(f"Cleaned {nb}")
+            print(f"Cleaned {nb.relative_to(PROJECT_ROOT)}")
             cleaned += 1
     
     if cleaned > 0:
@@ -51,4 +56,5 @@ def main():
         sys.exit(0)
 
 if __name__ == '__main__':
-    main() 
+    main()
+ 

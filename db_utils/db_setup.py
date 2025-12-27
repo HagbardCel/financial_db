@@ -48,6 +48,10 @@ def main():
     current_dir = Path(__file__).parent
     sql_path = current_dir / 'db_setup.sql'
 
+    if not sql_path.exists():
+        print(f"Error: SQL setup file not found at {sql_path}")
+        sys.exit(1)
+
     # Read the SQL file
     with open(sql_path, 'r') as file:
         sql_script = file.read()
