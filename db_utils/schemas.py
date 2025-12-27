@@ -21,6 +21,10 @@ TABLE_SCHEMAS = {
     'test_data': {
         'columns': ['id', 'date', 'long_name', 'value'],
         'primary_keys': ['id', 'date']
+    },
+    'stock_prices': {
+        'columns': ['symbol', 'date', 'open', 'high', 'low', 'close', 'volume'],
+        'primary_keys': ['symbol', 'date']
     }
 }
 

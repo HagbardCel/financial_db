@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.4
 # Note: You can use any Debian/Ubuntu based image you want.
-FROM mcr.microsoft.com/devcontainers/base:bullseye
+FROM mcr.microsoft.com/devcontainers/base:bookworm
 
 # ============================================================================
 # LAYER 1: System packages (rarely change - good for caching)
@@ -17,7 +17,7 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
 # ============================================================================
 # LAYER 1.5: Install uv (fast Python package manager)
 # ============================================================================
-RUN pip3 install uv
+RUN pip3 install uv --break-system-packages
 
 # ============================================================================
 # LAYER 2: Python dependencies (change occasionally - use cache mount)
@@ -35,7 +35,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     cd /tmp && \
     (uv sync --frozen --system --no-install-project 2>/dev/null || \
     uv sync --system --no-install-project 2>/dev/null || \
-    uv pip install --system -r pyproject.toml) \
+    uv pip install --system --break-system-packages -r pyproject.toml) \
     && rm -f /tmp/pyproject.toml /tmp/uv.lock
 
 # = ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

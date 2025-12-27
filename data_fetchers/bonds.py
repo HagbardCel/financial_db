@@ -25,7 +25,7 @@ class TreasuryFetcher(BaseFetcher):
                 df = web.DataReader(series_id, 'fred', self.start_date, self.end_date)
                 data[maturity] = df
             except Exception as e:
-                print(f"Error fetching {maturity} treasury rate: {e}")
+                self.logger.error(f"Error fetching {maturity} treasury rate: {e}")
         return data
 
     def transform(self, raw_data: dict) -> pd.DataFrame:
@@ -45,16 +45,10 @@ class TreasuryFetcher(BaseFetcher):
                     })
         return pd.DataFrame(records)
 
-    def run_pipeline(self):
-        """Execute the fetch-transform-save pipeline for treasury rates."""
-        # Note: mapping is done in transform logic here, so no value_mapping needed for save
-        self.run(table_name='interest_rates')
-
 if __name__ == "__main__":
     from datetime import timedelta
     end_date = datetime.now()
     start_date = end_date - timedelta(days=365)
     
     fetcher = TreasuryFetcher(start_date=start_date, end_date=end_date, db_config=get_database_config())
-    fetcher.run_pipeline()
-    print("Done fetching and saving Treasury rates.")
+    fetcher.run(table_name='interest_rates')

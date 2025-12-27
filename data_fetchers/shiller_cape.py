@@ -11,10 +11,13 @@ from db_utils.config import get_database_config
 from pathlib import Path
 import json
 
+from typing import Dict, Union
+
 class ShillerCapeFetcher(BaseFetcher):
-    def __init__(self, file_url: str, db_config: dict = None):
+    def __init__(self, file_url: str, column_mapping: dict, db_config: dict = None):
         super().__init__(db_config)
         self.file_url = file_url
+        self.column_mapping = column_mapping
         self.temp_file = '/tmp/shiller_cape.xls'
         self.sheet_name = 'Data'
 
@@ -53,7 +56,7 @@ class ShillerCapeFetcher(BaseFetcher):
         ) + MonthEnd(0)
         return dates
 
-    def transform(self, file_path: str) -> pd.DataFrame:
+    def transform(self, file_path: str) -> Dict[str, pd.DataFrame]:
         col_names = self._extract_column_names(file_path)
         dates = self._parse_dates(file_path)
         
@@ -69,17 +72,11 @@ class ShillerCapeFetcher(BaseFetcher):
         cape_data.dropna(how='all', inplace=True)
         cape_data = cape_data.apply(pd.to_numeric, errors='coerce')
         cape_data.index = dates
-        return cape_data
 
-    def run_pipeline(self, column_mapping: dict):
-        """Custom run because it saves to multiple tables."""
-        raw_path = self.fetch()
-        data = self.transform(raw_path)
-        
         # Prepare data for macro_data and test_data tables
         records = []
-        for date, row in data.iterrows():
-            for raw_col, details in column_mapping.items():
+        for date, row in cape_data.iterrows():
+            for raw_col, details in self.column_mapping.items():
                 value = row[raw_col]
                 if pd.notna(value):
                     records.append({
@@ -94,10 +91,10 @@ class ShillerCapeFetcher(BaseFetcher):
         macro_data = df[df['type'] != 'derived'].drop('type', axis=1)
         test_data = df[df['type'] == 'derived'].drop('type', axis=1)
         
-        if not macro_data.empty:
-            self.save(macro_data, 'macro_data')
-        if not test_data.empty:
-            self.save(test_data, 'test_data')
+        return {
+            'macro_data': macro_data,
+            'test_data': test_data
+        }
 
 def main():
     if len(sys.argv) != 2:
@@ -112,8 +109,8 @@ def main():
     with open(config_path, 'r') as f:
         column_mapping = json.load(f)
 
-    fetcher = ShillerCapeFetcher(file_url, db_config=get_database_config())
-    fetcher.run_pipeline(column_mapping)
+    fetcher = ShillerCapeFetcher(file_url, column_mapping, db_config=get_database_config())
+    fetcher.run()
 
 if __name__ == "__main__":
     main()
