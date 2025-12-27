@@ -33,8 +33,8 @@ COPY --chown=root:root uv.lock* /tmp/
 # We use --no-install-project because the source code isn't copied yet (to keep the image slim/cacheable)
 RUN --mount=type=cache,target=/root/.cache/uv \
     cd /tmp && \
-    (uv sync --frozen --no-dev --system --no-install-project 2>/dev/null || \
-    uv sync --no-dev --system --no-install-project 2>/dev/null || \
+    (uv sync --frozen --system --no-install-project 2>/dev/null || \
+    uv sync --system --no-install-project 2>/dev/null || \
     uv pip install --system -r pyproject.toml) \
     && rm -f /tmp/pyproject.toml /tmp/uv.lock
 

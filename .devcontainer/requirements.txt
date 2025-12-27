@@ -8,3 +8,5 @@ scikit-learn
 seaborn
 xlrd
 yfinance
+pytest
+pytest-postgresql
