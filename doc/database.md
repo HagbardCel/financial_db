@@ -42,6 +42,17 @@ Stores historical price data for equities and other ticker-based assets.
 -   `volume` (BIGINT): Trade volume.
 -   **Primary Key**: `(symbol, date)`
 
+### `commodity_prices`
+Stores historical price data for commodities.
+-   `symbol` (TEXT): Ticker symbol (e.g., `GC=F`).
+-   `date` (DATE): Observational date.
+-   `open` (NUMERIC): Open price.
+-   `high` (NUMERIC): High price.
+-   `low` (NUMERIC): Low price.
+-   `close` (NUMERIC): Close price.
+-   `volume` (BIGINT): Trade volume.
+-   **Primary Key**: `(symbol, date)`
+
 ### `macro_data`
 Stores general macroeconomic indicators.
 -   `id` (TEXT): Identifier for the metric (e.g., 'CPI', 'UNRATE').

@@ -25,6 +25,10 @@ TABLE_SCHEMAS = {
     'stock_prices': {
         'columns': ['symbol', 'date', 'open', 'high', 'low', 'close', 'volume'],
         'primary_keys': ['symbol', 'date']
+    },
+    'commodity_prices': {
+        'columns': ['symbol', 'date', 'open', 'high', 'low', 'close', 'volume'],
+        'primary_keys': ['symbol', 'date']
     }
 }
 

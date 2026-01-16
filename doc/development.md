@@ -72,6 +72,11 @@ python -m data_fetchers.bonds
 python -m data_fetchers.yahoo_finance AAPL MSFT
 ```
 
+**Commodity Prices (Yahoo Finance)**:
+```bash
+python -m data_fetchers.commodities
+```
+
 ## Testing
 
 Tests are written using `pytest` and located in the `tests/` directory.
