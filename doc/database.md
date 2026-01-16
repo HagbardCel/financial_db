@@ -31,6 +31,17 @@ Stores historical values for market indices.
 -   `value` (NUMERIC): The index value.
 -   **Primary Key**: `(id, date)`
 
+### `stock_prices`
+Stores historical price data for equities and other ticker-based assets.
+-   `symbol` (TEXT): Ticker symbol.
+-   `date` (DATE): Observational date.
+-   `open` (NUMERIC): Open price.
+-   `high` (NUMERIC): High price.
+-   `low` (NUMERIC): Low price.
+-   `close` (NUMERIC): Close price.
+-   `volume` (BIGINT): Trade volume.
+-   **Primary Key**: `(symbol, date)`
+
 ### `macro_data`
 Stores general macroeconomic indicators.
 -   `id` (TEXT): Identifier for the metric (e.g., 'CPI', 'UNRATE').

@@ -2,12 +2,6 @@ import os
 import sys
 from pathlib import Path
 
-# Add project root to path so we can import packages like 'db_utils' or 'data_fetchers'
-# For data_fetchers/shiller_cape.py, root is 1 level up
-project_root = Path(__file__).resolve().parent.parent
-if str(project_root) not in sys.path:
-    sys.path.insert(0, str(project_root))
-
 import requests
 import pandas as pd
 import numpy as np

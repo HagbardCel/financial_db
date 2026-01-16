@@ -52,16 +52,21 @@ python db_utils/db_setup.py --reset
 
 ## Running Data Fetchers
 
-Data fetchers are located in `data_fetchers/` and can be run individually:
+Data fetchers are located in `data_fetchers/` and can be run individually from the repo root:
 
 **Shiller CAPE Data**:
 ```bash
-python data_fetchers/shiller_cape.py <url_to_excel_file>
+python -m data_fetchers.shiller_cape <url_to_excel_file>
 ```
 
 **Bond Yields (FRED)**:
 ```bash
-python data_fetchers/bonds.py
+python -m data_fetchers.bonds
+```
+
+**Yahoo Finance Prices**:
+```bash
+python -m data_fetchers.yahoo_finance AAPL MSFT
 ```
 
 ## Testing
@@ -76,4 +81,9 @@ pytest tests/
 Run a specific test file:
 ```bash
 pytest tests/test_database.py
+```
+
+Run only integration tests:
+```bash
+pytest -m integration
 ```

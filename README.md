@@ -18,8 +18,7 @@ This repository provides a robust setup for managing financial data locally usin
 1.  Clone the repository.
 2.  Open in VS Code and reopen in Devcontainer.
 3.  Initialize the database: `python db_utils/db_setup.py`
-4.  Run a fetcher: `python data_fetchers/bonds.py`
+4.  Run a fetcher from the repo root: `python -m data_fetchers.bonds`
 
 ## License
 Personal use only. Not for public distribution.
-

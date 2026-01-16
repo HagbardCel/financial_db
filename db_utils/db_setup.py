@@ -52,12 +52,17 @@ def main():
         print(f"Error: SQL setup file not found at {sql_path}")
         sys.exit(1)
 
-    # Read the SQL file
-    with open(sql_path, 'r') as file:
-        sql_script = file.read()
+    sql_files = [sql_path]
+    derived_path = current_dir.parent / 'derived' / 'shiller_cape.sql'
+    if not derived_path.exists():
+        print(f"Error: Derived SQL file not found at {derived_path}")
+        sys.exit(1)
+    sql_files.append(derived_path)
 
-    # Execute the SQL script
-    cur.execute(sql_script)
+    for path in sql_files:
+        with open(path, 'r') as file:
+            sql_script = file.read()
+        cur.execute(sql_script)
 
     # Commit the changes
     conn.commit()

@@ -24,6 +24,17 @@ CREATE TABLE IF NOT EXISTS indices (
     PRIMARY KEY (id, date)
 );
 
+CREATE TABLE IF NOT EXISTS stock_prices (
+    symbol VARCHAR(10) NOT NULL,
+    date DATE NOT NULL,
+    open NUMERIC(16, 4),
+    high NUMERIC(16, 4),
+    low NUMERIC(16, 4),
+    close NUMERIC(16, 4),
+    volume BIGINT,
+    PRIMARY KEY (symbol, date)
+);
+
 CREATE TABLE IF NOT EXISTS macro_data (
     id VARCHAR(18) NOT NULL,
     date DATE NOT NULL,
