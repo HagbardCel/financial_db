@@ -14,15 +14,17 @@ dependencies = [
     "seaborn",
     "xlrd",
     "yfinance",
+    "sqlalchemy",
 ]
 
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
-[tool.uv]
-dev-dependencies = [
-    "pytest",
+[project.dependency-groups.dev]
+dependencies = [
+    "pytest>=8.4.2",
     "pytest-postgresql",
     "psycopg[binary]",
+]
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: mark tests as integration tests",
 ]

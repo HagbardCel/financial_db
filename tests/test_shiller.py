@@ -6,7 +6,7 @@ from typing import Tuple, List
 
 import numpy as np
 import pandas as pd
-import psycopg2
+from sqlalchemy import create_engine
 import pytest
 
 from db_utils.config import get_database_config
@@ -85,9 +85,16 @@ def db_conn():
         config = get_database_config()
     except ValueError as exc:
         pytest.skip(str(exc))
-    conn = psycopg2.connect(**config)
+    # build SQLAlchemy URL so pandas can accept the connectable
+    url = (
+        f"postgresql+psycopg2://{config['user']}:{config['password']}@"
+        f"{config['host']}:{config['port']}/{config['dbname']}"
+    )
+    engine = create_engine(url)
+    conn = engine.connect()
     yield conn
     conn.close()
+    engine.dispose()
 
 
 def test_shiller_derived_view_matches_test_data(db_conn):

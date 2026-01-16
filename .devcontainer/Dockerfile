@@ -9,15 +9,11 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
     && apt-get -y install --no-install-recommends \
     python3 \
     python3-pip \
+    python3-venv \
     curl \
     ca-certificates \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
-
-# ============================================================================
-# LAYER 1.5: Install uv (fast Python package manager)
-# ============================================================================
-RUN pip3 install uv --break-system-packages
 
 # ============================================================================
 # LAYER 2: Python dependencies (change occasionally - use cache mount)
@@ -27,15 +23,19 @@ COPY --chown=root:root pyproject.toml /tmp/
 # We use a glob for the lock file so the build doesn't fail if it's missing
 COPY --chown=root:root uv.lock* /tmp/
 
-# Install Python packages with BuildKit cache mount for uv
-# This speeds up rebuilds significantly by caching downloaded packages
-# Using --system to install into system Python (no venv in container)
-# We use --no-install-project because the source code isn't copied yet (to keep the image slim/cacheable)
+# Create a tools virtualenv and install uv into it (keeps system clean)
+RUN python3 -m venv /opt/venv \
+ && /opt/venv/bin/pip install --no-cache-dir --upgrade pip uv
+
+# Add tools venv to PATH so `uv` runs from the venv
+ENV PATH=/opt/venv/bin:$PATH
+
+# Install Python packages with BuildKit cache mount for uv (no system install)
 RUN --mount=type=cache,target=/root/.cache/uv \
     cd /tmp && \
-    (uv sync --frozen --system --no-install-project 2>/dev/null || \
-    uv sync --system --no-install-project 2>/dev/null || \
-    uv pip install --system --break-system-packages -r pyproject.toml) \
+    (uv sync --frozen --no-install-project 2>/dev/null || \
+     uv sync --no-install-project 2>/dev/null || \
+     uv pip install -r pyproject.toml) \
     && rm -f /tmp/pyproject.toml /tmp/uv.lock
 
 # = ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
