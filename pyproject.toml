@@ -17,6 +17,7 @@ dependencies = [
     "xlrd",
     "yfinance",
     "sqlalchemy",
+    "pytest>=8.4.2",
 ]
 
 [project.dependency-groups.dev]

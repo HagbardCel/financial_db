@@ -3,7 +3,8 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
-from dashboard import analytics, db
+from dashboard import analytics
+from db_utils import database as db
 
 
 DATASETS = {

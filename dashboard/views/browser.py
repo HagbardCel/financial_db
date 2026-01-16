@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from dashboard import db
+from db_utils import database as db
 
 
 TABLES = {

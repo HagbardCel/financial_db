@@ -3,7 +3,7 @@ from __future__ import annotations
 import streamlit as st
 from sqlalchemy import text
 
-from dashboard import db
+from db_utils import database as db
 from dashboard.views import browser, compare, derived, overview, prices, rates, series
 
 

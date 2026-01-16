@@ -4,7 +4,7 @@ import re
 import pandas as pd
 import streamlit as st
 
-from dashboard import db
+from db_utils import database as db
 
 
 def _maturity_to_years(value: str) -> float:

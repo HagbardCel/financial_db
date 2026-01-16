@@ -5,7 +5,8 @@ import seaborn as sns
 import streamlit as st
 import matplotlib.pyplot as plt
 
-from dashboard import analytics, db
+from dashboard import analytics
+from db_utils import database as db
 
 
 COMPARE_DATASETS = {
