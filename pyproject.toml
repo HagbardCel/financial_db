@@ -13,6 +13,7 @@ dependencies = [
     "requests",
     "scikit-learn",
     "seaborn",
+    "streamlit",
     "xlrd",
     "yfinance",
     "sqlalchemy",

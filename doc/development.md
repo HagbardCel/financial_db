@@ -77,6 +77,13 @@ python -m data_fetchers.yahoo_finance AAPL MSFT
 python -m data_fetchers.commodities
 ```
 
+## Dashboard
+
+Run the Streamlit dashboard:
+```bash
+uv run streamlit run dashboard/app.py
+```
+
 ## Testing
 
 Tests are written using `pytest` and located in the `tests/` directory.
