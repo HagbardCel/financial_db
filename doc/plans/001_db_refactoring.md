@@ -97,8 +97,8 @@ with DatabaseConnection(config=get_database_config()) as db:
 ## Verification Plan
 
 ### Manual Verification
-1.  Run `python data_fetchers/shiller_cape.py <url>` and verify data is written to DB.
-2.  Run `python data_fetchers/bonds.py` and verify data is written to DB.
+1.  Run `python -m data_fetchers.shiller_cape <url>` and verify data is written to DB.
+2.  Run `python -m data_fetchers.bonds` and verify data is written to DB.
 3.  Check if `DatabaseConnection` can be instantiated with valid config.
 
 ### Automated Tests

@@ -26,6 +26,7 @@ def reset_database(cursor):
 def main():
     # Check for --reset flag
     reset_flag = '--reset' in sys.argv
+    confirm_reset = '--yes' in sys.argv
 
     # Retrieve database connection details
     try:
@@ -42,6 +43,9 @@ def main():
 
     # Reset the database if the flag is set
     if reset_flag:
+        if not confirm_reset:
+            print("Refusing to reset without confirmation. Re-run with --reset --yes.")
+            sys.exit(1)
         reset_database(cur)
 
     # Resolve SQL script path relative to this script
@@ -52,17 +56,9 @@ def main():
         print(f"Error: SQL setup file not found at {sql_path}")
         sys.exit(1)
 
-    sql_files = [sql_path]
-    derived_path = current_dir.parent / 'derived' / 'shiller_cape.sql'
-    if not derived_path.exists():
-        print(f"Error: Derived SQL file not found at {derived_path}")
-        sys.exit(1)
-    sql_files.append(derived_path)
-
-    for path in sql_files:
-        with open(path, 'r') as file:
-            sql_script = file.read()
-        cur.execute(sql_script)
+    with open(sql_path, 'r') as file:
+        sql_script = file.read()
+    cur.execute(sql_script)
 
     # Commit the changes
     conn.commit()

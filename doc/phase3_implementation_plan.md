@@ -157,6 +157,6 @@ class YahooFinanceFetcher(BaseFetcher):
 ---
 
 ## 5. Verification Checklist
--   [ ] Run `python data_fetchers/bonds.py` -> Success.
--   [ ] Run `python data_fetchers/shiller_cape.py <url>` -> Success, data in both tables.
--   [ ] Run `python data_fetchers/yahoo_finance.py SPY` -> Success, data in `stock_prices` (assuming table exists).
+-   [ ] Run `python -m data_fetchers.bonds` -> Success.
+-   [ ] Run `python -m data_fetchers.shiller_cape <url>` -> Success, data in both tables.
+-   [ ] Run `python -m data_fetchers.yahoo_finance SPY` -> Success, data in `stock_prices` (assuming table exists).

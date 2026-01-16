@@ -61,7 +61,7 @@ Used for storing non-standard or derived data during testing or development phas
 ## Views
 
 ### `shiller_derived_view`
-Defined in `derived/shiller_cape.sql`. This view computes advanced valuation metrics based on Shiller's data.
+Defined in `db_utils/db_setup.sql` (mirrors `derived/shiller_cape.sql`). This view computes advanced valuation metrics based on Shiller's data.
 -   **Calculations**:
     -   Real Prices (CPI-adjusted)
     -   Real Earnings and Dividends

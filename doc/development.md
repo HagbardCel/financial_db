@@ -38,6 +38,9 @@ We use `uv` for fast and reliable dependency management.
 
 ## Database Management
 
+Database access requires these environment variables:
+`POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` (optional: `POSTGRES_HOST`, `POSTGRES_PORT`).
+
 ### Initialization
 To set up the database schema (create tables):
 ```bash
@@ -47,7 +50,7 @@ python db_utils/db_setup.py
 ### Resetting
 To drop all tables and start fresh (WARNING: Data will be lost):
 ```bash
-python db_utils/db_setup.py --reset
+python db_utils/db_setup.py --reset --yes
 ```
 
 ## Running Data Fetchers

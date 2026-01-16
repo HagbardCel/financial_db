@@ -1,13 +1,7 @@
-import sys
 import json
 from pathlib import Path
 
-# Add project root to path so we can import packages like 'db_utils'
-project_root = Path(__file__).resolve().parent.parent
-if str(project_root) not in sys.path:
-    sys.path.insert(0, str(project_root))
-
-from db_utils.paths import PROJECT_ROOT
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 def clean_notebook(notebook_path):
     """Remove all outputs from a Jupyter notebook."""
@@ -50,10 +44,10 @@ def main():
     
     if cleaned > 0:
         print(f"\nCleaned outputs from {cleaned} notebook{'s' if cleaned > 1 else ''}")
-        sys.exit(1)  # Exit with error so git will abort if notebooks were cleaned
+        raise SystemExit(1)  # Exit with error so git will abort if notebooks were cleaned
     else:
         print("No notebook outputs to clean")
-        sys.exit(0)
+        raise SystemExit(0)
 
 if __name__ == '__main__':
     main()
