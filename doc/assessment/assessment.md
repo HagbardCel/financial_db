@@ -48,7 +48,7 @@
 ## Architectural improvements
 ### 1. Keep “out-of-the-box” execution while cleaning imports
 - Standardize the run context: require running scripts from repo root and document it.
-- Replace `sys.path` manipulation with `python -m data_fetchers.yahoo_finance` from repo root.
+- Replace `sys.path` manipulation with `python -m data_fetchers.stock_prices` from repo root.
 - Optionally add a small `scripts/run_fetcher.py` or `Makefile` targets to keep usage consistent.
 
 ### 2. Establish a single schema source-of-truth without migrations
@@ -133,7 +133,7 @@
 
 4. **Repo-root execution standard** (done)
    - Remove `sys.path` manipulation from `data_fetchers/*.py`.
-   - Update `doc/development.md` and `README.md` with `python -m data_fetchers.yahoo_finance ...` examples.
+   - Update `doc/development.md` and `README.md` with `python -m data_fetchers.stock_prices ...` examples.
    - Acceptance: Fetchers run from repo root without `sys.path` hacks.
 
 5. **Pytest integration test cleanup** (done)

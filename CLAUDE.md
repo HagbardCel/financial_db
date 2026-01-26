@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a personal financial data management system that uses a PostgreSQL database running in Docker to store and analyze financial data from multiple sources (Yahoo Finance, FRED, Shiller CAPE data). The project includes Python data fetchers, database utilities, and SQL views for computing derived financial metrics.
+This is a personal financial data management system that uses a PostgreSQL database running in Docker to store and analyze financial data from multiple sources (OpenBB providers plus Shiller CAPE data). The project includes Python data fetchers, database utilities, and SQL views for computing derived financial metrics.
 
 ## Development Environment
 
@@ -23,7 +23,7 @@ This project uses **uv** (from Astral) for fast, modern Python package managemen
 
 - Dependencies are defined in `pyproject.toml` (PEP 621 standard)
 - Lock file `uv.lock` ensures reproducible builds
-- Core dependencies: pandas, psycopg2-binary, yfinance, scikit-learn, jupyterlab, matplotlib, seaborn, xlrd, numpy
+- Core dependencies: pandas, psycopg2-binary, openbb, scikit-learn, jupyterlab, matplotlib, seaborn, xlrd, numpy
 
 **Common uv commands:**
 ```bash
@@ -61,7 +61,7 @@ python db_utils/db_setup.py --reset
 # Fetch Shiller CAPE data (requires URL to Shiller's Excel file)
 python data_fetchers/shiller_cape.py <url>
 
-# Fetch US Treasury rates (from FRED)
+# Fetch US Treasury rates (via OpenBB)
 python data_fetchers/bonds.py
 ```
 

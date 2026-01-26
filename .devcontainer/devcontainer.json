@@ -26,7 +26,8 @@
 				"ms-ossdata.vscode-postgresql",
 				"mtxr.sqltools",
 				"mtxr.sqltools-driver-pg",
-				"ms-toolsai.jupyter"
+				"ms-toolsai.jupyter",
+				"openai.chatgpt"
 			]
 		}
 	},

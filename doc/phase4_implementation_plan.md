@@ -144,6 +144,6 @@ To ensure robust path handling works:
 - [x] `scripts/clean_notebooks.py` refactored to use `PROJECT_ROOT` and `sys.path` fix.
 - [x] `db_utils/db_setup.py` verified/refactored.
 - [x] `data_fetchers/shiller_cape.py` updated with `sys.path` fix for robust execution.
-- [x] `data_fetchers/yahoo_finance.py` updated with `sys.path` fix.
+- [x] `data_fetchers/stock_prices.py` updated with `sys.path` fix.
 - [x] Confirmed no other hardcoded relative paths exist.
 - [x] Tested running scripts from at least 3 different directories (Root, `scripts/`, Outside Repos).

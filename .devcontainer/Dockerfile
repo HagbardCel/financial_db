@@ -30,13 +30,13 @@ RUN python3 -m venv /opt/venv \
 # Add tools venv to PATH so `uv` runs from the venv
 ENV PATH=/opt/venv/bin:$PATH
 
-# Install Python packages with BuildKit cache mount for uv (no system install)
+# Install Python packages into a project venv so they're available at runtime
 RUN --mount=type=cache,target=/root/.cache/uv \
-    cd /tmp && \
-    (uv sync --frozen --no-install-project 2>/dev/null || \
-     uv sync --no-install-project 2>/dev/null || \
-     uv pip install -r pyproject.toml) \
-    && rm -f /tmp/pyproject.toml /tmp/uv.lock
+    mkdir -p /workspaces/financial_db \
+    && cd /workspaces/financial_db \
+    && cp /tmp/pyproject.toml /tmp/uv.lock* . \
+    && uv sync --frozen --no-install-project \
+    && rm -f pyproject.toml uv.lock
 
 # = ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 # LAYER 3: User configuration (The 'vscode' user already exists in base image)
@@ -48,6 +48,8 @@ RUN groupadd docker || true \
 # ============================================================================
 # LAYER 4: Environment and runtime configuration
 # ============================================================================
+# Use the project venv by default
+ENV PATH=/workspaces/financial_db/.venv/bin:$PATH
 # Set PYTHONPATH to include project root in the container
 ENV PYTHONPATH=/workspaces/financial_db:${PYTHONPATH}
 

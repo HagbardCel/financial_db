@@ -9,7 +9,7 @@ This phase focuses on enforcing a strict, consistent architecture for all data r
 To eliminate code duplication and inconsistency across data fetchers by:
 1.  Finalizing the `BaseFetcher` abstract class with strict typing and error handling.
 2.  Refactoring existing fetchers (`shiller_cape.py`, `bonds.py`) to adhere to this standard.
-3.  Implementing a new fetcher (`yahoo_finance.py`) as a proof-of-concept for the standard.
+3.  Implementing a new fetcher (`stock_prices.py`) as a proof-of-concept for the standard.
 
 ---
 
@@ -118,7 +118,7 @@ class BaseFetcher(ABC):
 
 ---
 
-## 4. Implement `yahoo_finance.py`
+## 4. Implement `stock_prices.py`
 **Objective**: Create a new fetcher for Stock Market data (e.g., SPY, VOO) to validate the new architecture.
 
 **Prerequisites**:
@@ -159,4 +159,4 @@ class YahooFinanceFetcher(BaseFetcher):
 ## 5. Verification Checklist
 -   [ ] Run `python -m data_fetchers.bonds` -> Success.
 -   [ ] Run `python -m data_fetchers.shiller_cape <url>` -> Success, data in both tables.
--   [ ] Run `python -m data_fetchers.yahoo_finance SPY` -> Success, data in `stock_prices` (assuming table exists).
+-   [ ] Run `python -m data_fetchers.stock_prices SPY` -> Success, data in `stock_prices` (assuming table exists).

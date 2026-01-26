@@ -1,6 +1,6 @@
 import argparse
 import os
-from typing import List, Optional
+from typing import Optional
 
 import pandas as pd
 
@@ -9,11 +9,8 @@ from data_fetchers import openbb_client
 from db_utils.config import get_database_config
 
 
-DEFAULT_SYMBOLS: List[str] = ["GC=F", "SI=F", "HG=F"]
-
-
-class OpenBBCommodityPriceFetcher(BaseFetcher):
-    """Fetcher for commodity price data via OpenBB."""
+class OpenBBEquityPriceFetcher(BaseFetcher):
+    """Fetcher for equity price data via OpenBB."""
 
     def __init__(
         self,
@@ -27,12 +24,12 @@ class OpenBBCommodityPriceFetcher(BaseFetcher):
         self.symbol = symbol
         self.start_date = start_date
         self.end_date = end_date
-        self.provider = provider or os.getenv("OPENBB_COMMODITY_PROVIDER")
+        self.provider = provider or os.getenv("OPENBB_EQUITY_PROVIDER")
 
     def fetch(self) -> pd.DataFrame:
-        self.logger.info("Fetching data for commodity: %s", self.symbol)
+        self.logger.info("Fetching data for symbol: %s", self.symbol)
         return openbb_client.fetch_dataframe(
-            openbb_client.get_commodity_history_path(),
+            openbb_client.get_equity_history_path(),
             symbol=self.symbol,
             start_date=self.start_date,
             end_date=self.end_date,
@@ -40,13 +37,13 @@ class OpenBBCommodityPriceFetcher(BaseFetcher):
         )
 
     def transform(self, raw_df: pd.DataFrame) -> pd.DataFrame:
-        self.logger.info("Transforming data for commodity: %s", self.symbol)
+        self.logger.info("Transforming data for symbol: %s", self.symbol)
         return openbb_client.normalize_ohlcv(raw_df, symbol=self.symbol)
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Fetch commodity OHLCV via OpenBB.")
-    parser.add_argument("symbols", nargs="*", help="Commodity symbols (e.g., GC=F SI=F)")
+    parser = argparse.ArgumentParser(description="Fetch equity OHLCV via OpenBB.")
+    parser.add_argument("symbols", nargs="+", help="Equity symbols (e.g., AAPL MSFT)")
     parser.add_argument("--start", dest="start_date", help="Start date (YYYY-MM-DD)")
     parser.add_argument("--end", dest="end_date", help="End date (YYYY-MM-DD)")
     parser.add_argument("--provider", help="OpenBB provider override")
@@ -55,19 +52,18 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    symbols = args.symbols or DEFAULT_SYMBOLS
     db_config = get_database_config()
 
-    for symbol in symbols:
+    for symbol in args.symbols:
         try:
-            fetcher = OpenBBCommodityPriceFetcher(
+            fetcher = OpenBBEquityPriceFetcher(
                 symbol,
                 start_date=args.start_date,
                 end_date=args.end_date,
                 provider=args.provider,
                 db_config=db_config,
             )
-            fetcher.run(table_name="commodity_prices")
+            fetcher.run(table_name="stock_prices")
             print(f"Successfully processed {symbol}")
         except Exception as exc:
             print(f"Failed to process {symbol}: {exc}")

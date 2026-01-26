@@ -62,20 +62,43 @@ Data fetchers are located in `data_fetchers/` and can be run individually from t
 python -m data_fetchers.shiller_cape <url_to_excel_file>
 ```
 
-**Bond Yields (FRED)**:
+**Treasury Rates (OpenBB)**:
 ```bash
 python -m data_fetchers.bonds
 ```
 
-**Yahoo Finance Prices**:
+**Equity Prices (OpenBB)**:
 ```bash
-python -m data_fetchers.yahoo_finance AAPL MSFT
+python -m data_fetchers.stock_prices AAPL MSFT
 ```
 
-**Commodity Prices (Yahoo Finance)**:
+**Commodity Prices (OpenBB)**:
 ```bash
 python -m data_fetchers.commodities
 ```
+
+**Gold Prices (OpenBB + CSV)**:
+```bash
+python -m data_fetchers.gold_prices
+```
+
+### OpenBB Provider Configuration
+OpenBB pulls data via providers; set provider keys via env vars as needed. Optional overrides:
+- `OPENBB_EQUITY_PROVIDER`
+- `OPENBB_COMMODITY_PROVIDER`
+- `OPENBB_RATES_PROVIDER`
+- `OPENBB_EQUITY_HISTORICAL_PATH` (default: `equity.price.historical`)
+- `OPENBB_COMMODITY_HISTORICAL_PATH` (default: `derivatives.futures.historical`)
+- `OPENBB_FRED_SERIES_PATH` (default: `economy.fred_series`)
+
+For FRED-backed rates, set `FRED_API_KEY` (or `OPENBB_FRED_API_KEY`).
+
+OpenBB dependency footprint: this repo installs the full OpenBB meta-package for now. If dependency weight becomes an issue, revisit slimming providers by switching to `openbb-core` plus the specific provider packages we use.
+
+OpenBB model layer: normalization stays DataFrame-based in `data_fetchers/openbb_client.py` rather than relying on OpenBB models for now.
+
+Gold prices are sourced from the datasets/gold-prices monthly CSV:
+`https://github.com/datasets/gold-prices/blob/main/data/monthly.csv?utm_source=chatgpt.com`
 
 ## Dashboard
 

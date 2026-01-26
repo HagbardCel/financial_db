@@ -4,15 +4,14 @@
 
 The `financial_db` project is a personal financial data management system designed to run locally on a laptop. It leverages Docker to host a PostgreSQL database, providing an isolated and consistent environment for data storage and analysis.
 
-The core of the system is a Python-based data ingestion pipeline that fetches financial data from various external sources (e.g., Yahoo Finance, FRED, Shiller CAPE) and stores it in the database. Complex financial metrics are then computed directly within the database using SQL views.
+The core of the system is a Python-based data ingestion pipeline that fetches financial data from external sources via the OpenBB SDK (plus direct Shiller CAPE downloads) and stores it in the database. Complex financial metrics are then computed directly within the database using SQL views.
 
 ## High-Level Architecture
 
 ```mermaid
 graph TD
     subgraph External Sources
-        YF[Yahoo Finance]
-        FRED[FRED API]
+        OpenBB[OpenBB Providers]
         Shiller[Shiller Excel]
     end
 
@@ -27,8 +26,7 @@ graph TD
         DerivedViews[Derived Views]
     end
 
-    YF --> Fetcher
-    FRED --> Fetcher
+    OpenBB --> Fetcher
     Shiller --> Fetcher
     Fetcher --> DBUtils
     DBUtils --> Postgres

@@ -4,14 +4,14 @@
 Add a lean, repeatable way to ingest historic commodity prices (gold, silver, copper) using an existing data source and a dedicated table.
 
 ## Source (Already Connected)
-- **Yahoo Finance** via `yfinance` (already used by `data_fetchers/yahoo_finance.py`).
+- **Yahoo Finance** via `yfinance` (already used by `data_fetchers/stock_prices.py`).
 - Symbols:
   - `GC=F` (Gold futures)
   - `SI=F` (Silver futures)
   - `HG=F` (Copper futures)
 
 ## Current State
-- `data_fetchers/yahoo_finance.py` writes OHLCV data to `stock_prices`.
+- `data_fetchers/stock_prices.py` writes OHLCV data to `stock_prices`.
 - No commodity-specific table or runner.
 
 ## Proposed Changes
