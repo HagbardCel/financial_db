@@ -33,6 +33,10 @@ TABLE_SCHEMAS = {
     'factor_returns': {
         'columns': ['source', 'factor_set', 'frequency', 'factor', 'date', 'value', 'unit'],
         'primary_keys': ['source', 'factor_set', 'frequency', 'factor', 'date']
+    },
+    'portfolio_returns': {
+        'columns': ['source', 'portfolio_set', 'universe', 'frequency', 'portfolio', 'date', 'value', 'unit'],
+        'primary_keys': ['source', 'portfolio_set', 'universe', 'frequency', 'portfolio', 'date']
     }
 }
 

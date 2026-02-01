@@ -99,3 +99,12 @@ data/
 
 # Scrap notebook
 notebooks/scrap.ipynb
+
+# VS Code (personal settings)
+.vscode/settings.json
+
+# Analysis outputs & cached downloads
+analyses/analyses_outputs/
+derived/aqr/
+derived/ken_french/
+derived/ken_french_portfolios/

@@ -45,3 +45,20 @@ def test_normalize_rate_series():
         "currency",
     ]
     assert out.loc[0, "interest_rate"] == 4.1
+
+
+def test_normalize_ohlcv_prefers_adjusted_close():
+    df = pd.DataFrame(
+        {
+            "date": ["2024-01-01", "2024-01-02"],
+            "close": [100.0, 101.0],
+            "adj_close": [105.0, 106.0],
+            "open": [99.0, 100.0],
+            "high": [110.0, 111.0],
+            "low": [98.0, 99.0],
+            "volume": [1000, 1100],
+        }
+    )
+
+    out = openbb_client.normalize_ohlcv(df, symbol="TEST", prefer_adjusted=True)
+    assert out.loc[0, "close"] == 105.0

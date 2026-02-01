@@ -78,7 +78,8 @@ Do not store factor data in `macro_data`.
 - Drop all-null rows after parsing.
 
 ## Ingestion / ETL Design
-### New fetcher: `data_fetchers/fama_french_factors.py` (Monthly)
+### New fetcher: `data_fetchers/ken_french.py` (Monthly)
+Use the `factors` subcommand to ingest factor returns.
 Implement a fetch-transform-save pipeline consistent with existing fetchers:
 - `fetch()`
   - Download the relevant zipped CSV payload(s) from the data library.
@@ -110,7 +111,7 @@ Even if the source provides full-history files, ingestion can still be increment
 
 ### Operational entrypoint
 Add one of:
-- `python -m data_fetchers.fama_french_factors --sets ff3 ff5 --freq D M`
+- `python -m data_fetchers.ken_french` (fetches factors + portfolios by default)
 or
 - a small runner in `scripts/` that calls the fetcher(s) with sensible defaults.
 

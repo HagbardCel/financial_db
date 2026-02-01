@@ -78,6 +78,23 @@ CREATE INDEX IF NOT EXISTS idx_factor_returns_set_freq_factor_date
 CREATE INDEX IF NOT EXISTS idx_factor_returns_date
     ON factor_returns (date);
 
+CREATE TABLE IF NOT EXISTS portfolio_returns (
+    source TEXT NOT NULL,
+    portfolio_set TEXT NOT NULL,
+    universe TEXT NOT NULL,
+    frequency CHAR(1) NOT NULL,
+    portfolio TEXT NOT NULL,
+    date DATE NOT NULL,
+    value NUMERIC NOT NULL,
+    unit TEXT NOT NULL DEFAULT 'decimal',
+    PRIMARY KEY (source, portfolio_set, universe, frequency, portfolio, date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_portfolio_returns_set_universe_freq_portfolio_date
+    ON portfolio_returns (portfolio_set, universe, frequency, portfolio, date);
+CREATE INDEX IF NOT EXISTS idx_portfolio_returns_date
+    ON portfolio_returns (date);
+
 -- Derived views
 
 -- Create a view for derived Shiller CAPE data

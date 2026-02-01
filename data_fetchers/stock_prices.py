@@ -18,6 +18,7 @@ class OpenBBEquityPriceFetcher(BaseFetcher):
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
         provider: Optional[str] = None,
+        prefer_adjusted: bool = True,
         db_config: Optional[dict] = None,
     ):
         super().__init__(db_config)
@@ -25,6 +26,7 @@ class OpenBBEquityPriceFetcher(BaseFetcher):
         self.start_date = start_date
         self.end_date = end_date
         self.provider = provider or os.getenv("OPENBB_EQUITY_PROVIDER")
+        self.prefer_adjusted = prefer_adjusted
 
     def fetch(self) -> pd.DataFrame:
         self.logger.info("Fetching data for symbol: %s", self.symbol)
@@ -38,7 +40,11 @@ class OpenBBEquityPriceFetcher(BaseFetcher):
 
     def transform(self, raw_df: pd.DataFrame) -> pd.DataFrame:
         self.logger.info("Transforming data for symbol: %s", self.symbol)
-        return openbb_client.normalize_ohlcv(raw_df, symbol=self.symbol)
+        return openbb_client.normalize_ohlcv(
+            raw_df,
+            symbol=self.symbol,
+            prefer_adjusted=self.prefer_adjusted,
+        )
 
 
 def parse_args() -> argparse.Namespace:
@@ -47,12 +53,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--start", dest="start_date", help="Start date (YYYY-MM-DD)")
     parser.add_argument("--end", dest="end_date", help="End date (YYYY-MM-DD)")
     parser.add_argument("--provider", help="OpenBB provider override")
+    parser.add_argument(
+        "--use-raw-close",
+        action="store_true",
+        help="Use raw close instead of adjusted close when both are available.",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
     db_config = get_database_config()
+    prefer_adjusted = not args.use_raw_close
 
     for symbol in args.symbols:
         try:
@@ -61,6 +73,7 @@ def main() -> None:
                 start_date=args.start_date,
                 end_date=args.end_date,
                 provider=args.provider,
+                prefer_adjusted=prefer_adjusted,
                 db_config=db_config,
             )
             fetcher.run(table_name="stock_prices")

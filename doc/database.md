@@ -38,7 +38,7 @@ Stores historical price data for equities and other ticker-based assets.
 -   `open` (NUMERIC): Open price.
 -   `high` (NUMERIC): High price.
 -   `low` (NUMERIC): Low price.
--   `close` (NUMERIC): Close price.
+-   `close` (NUMERIC): Close price (stored as **adjusted close when available**, otherwise raw close).
 -   `volume` (BIGINT): Trade volume.
 -   **Primary Key**: `(symbol, date)`
 
@@ -71,6 +71,18 @@ Stores factor return series (e.g., Fama-French).
 -   `value` (NUMERIC): Factor return stored as a **decimal** (e.g., `0.0123` = `1.23%`).
 -   `unit` (TEXT): Unit marker (default `decimal`).
 -   **Primary Key**: `(source, factor_set, frequency, factor, date)`
+
+### `portfolio_returns`
+Stores long-only portfolio return series (e.g., AQR and Ken French deciles).
+-   `source` (TEXT): Data source identifier (e.g., `aqr`, `ken_french`).
+-   `portfolio_set` (TEXT): Portfolio set name (e.g., `qmj_10_deciles`, `10_portfolios_formed_on_be-me`).
+-   `universe` (TEXT): Universe or region tag (e.g., `USA`, `Global`, `NA`).
+-   `frequency` (CHAR(1)): Observation frequency (`M` for monthly).
+-   `portfolio` (TEXT): Portfolio label (e.g., `Lo 10`, `2`, …, `Hi 10`).
+-   `date` (DATE): Observational date (month-end for monthly data).
+-   `value` (NUMERIC): Portfolio return stored as a **decimal** (e.g., `0.0123` = `1.23%`).
+-   `unit` (TEXT): Unit marker (default `decimal`).
+-   **Primary Key**: `(source, portfolio_set, universe, frequency, portfolio, date)`
 
 ### `test_data`
 Used for storing non-standard or derived data during testing or development phases.

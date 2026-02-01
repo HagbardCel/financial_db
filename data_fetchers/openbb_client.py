@@ -167,12 +167,21 @@ def _resolve_value_column(
     raise ValueError("No numeric value column found in OpenBB response.")
 
 
-def normalize_ohlcv(df: pd.DataFrame, symbol: str) -> pd.DataFrame:
+def normalize_ohlcv(
+    df: pd.DataFrame,
+    symbol: str,
+    prefer_adjusted: bool = False,
+) -> pd.DataFrame:
     if df.empty:
         raise ValueError("OpenBB response was empty.")
 
     date_series = _get_date_series(df)
-    close_col = _resolve_column(df, ("close", "adj_close", "adjclose", "price", "value"))
+    close_candidates = (
+        ("adj_close", "adjclose", "adjusted_close", "close", "price", "value")
+        if prefer_adjusted
+        else ("close", "adj_close", "adjclose", "adjusted_close", "price", "value")
+    )
+    close_col = _resolve_column(df, close_candidates)
     if not close_col:
         raise ValueError(
             "No close/price column found for OHLCV normalization. "

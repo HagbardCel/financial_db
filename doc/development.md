@@ -40,6 +40,7 @@ We use `uv` for fast and reliable dependency management.
 
 Database access requires these environment variables:
 `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` (optional: `POSTGRES_HOST`, `POSTGRES_PORT`).
+We keep these in `.devcontainer/.env` (or a local `.env`) and do not commit personal editor settings.
 
 ### Initialization
 To set up the database schema (create tables):
@@ -71,6 +72,10 @@ python -m data_fetchers.bonds
 ```bash
 python -m data_fetchers.stock_prices AAPL MSFT
 ```
+Defaults to adjusted close (when available). To force raw close:
+```bash
+python -m data_fetchers.stock_prices --use-raw-close AAPL MSFT
+```
 
 **Commodity Prices (OpenBB)**:
 ```bash
@@ -82,9 +87,17 @@ python -m data_fetchers.commodities
 python -m data_fetchers.gold_prices
 ```
 
-**Fama-French Factors (Monthly)**:
+**Ken French datasets (Factors + Portfolios)**:
 ```bash
-python -m data_fetchers.fama_french_factors --sets ff3 ff5 mom
+python -m data_fetchers.ken_french
+```
+Fetch only factors:
+```bash
+python -m data_fetchers.ken_french factors
+```
+Fetch only portfolios:
+```bash
+python -m data_fetchers.ken_french portfolios
 ```
 
 ### OpenBB Provider Configuration

@@ -4,8 +4,8 @@ import psycopg2
 from psycopg2 import pool
 import pandas as pd
 import numpy as np
-from typing import Dict, Any, List, Tuple, Optional
-from sqlalchemy import create_engine, text
+from typing import Dict, Any, Iterable, List, Tuple, Optional
+from sqlalchemy import bindparam, create_engine, text
 from sqlalchemy.engine import Engine, URL
 from .schemas import get_schema
 from .config import get_database_config
@@ -94,6 +94,41 @@ def build_engine(config: Optional[Dict[str, str]] = None) -> Engine:
 
 def read_sql(engine: Engine, query: str, params: Optional[Dict[str, Any]] = None) -> pd.DataFrame:
     return pd.read_sql(text(query), engine, params=params)
+
+
+def read_sql_expanding(
+    engine: Engine,
+    query: str,
+    params: Optional[Dict[str, Any]] = None,
+    expanding: Optional[List[str]] = None,
+) -> pd.DataFrame:
+    stmt = text(query)
+    if expanding:
+        for key in expanding:
+            stmt = stmt.bindparams(bindparam(key, expanding=True))
+    return pd.read_sql(stmt, engine, params=params)
+
+
+def read_table(
+    engine: Engine,
+    table: str,
+    columns: List[str],
+    where: Optional[str] = None,
+    params: Optional[Dict[str, Any]] = None,
+    order_by: Optional[Iterable[str]] = None,
+    expanding: Optional[List[str]] = None,
+) -> pd.DataFrame:
+    columns_sql = ", ".join(columns)
+    query = f"SELECT {columns_sql} FROM {table}"
+    if where:
+        query += f" WHERE {where}"
+    if order_by:
+        order_sql = ", ".join(order_by)
+        query += f" ORDER BY {order_sql}"
+
+    if expanding:
+        return read_sql_expanding(engine, query, params=params, expanding=expanding)
+    return read_sql(engine, query, params=params)
 
 
 def list_distinct(
