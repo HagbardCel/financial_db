@@ -61,6 +61,17 @@ Stores general macroeconomic indicators.
 -   `value` (NUMERIC): The recorded value.
 -   **Primary Key**: `(id, date)`
 
+### `factor_returns`
+Stores factor return series (e.g., Fama-French).
+-   `source` (TEXT): Data source identifier (e.g., `ken_french`).
+-   `factor_set` (TEXT): Factor set name (e.g., `ff3`, `ff5`, `mom`).
+-   `frequency` (CHAR(1)): Observation frequency (`M` for monthly).
+-   `factor` (TEXT): Factor label (e.g., `Mkt-RF`, `SMB`, `HML`, `RMW`, `CMA`, `UMD`, `RF`).
+-   `date` (DATE): Observational date (month-end for monthly data).
+-   `value` (NUMERIC): Factor return stored as a **decimal** (e.g., `0.0123` = `1.23%`).
+-   `unit` (TEXT): Unit marker (default `decimal`).
+-   **Primary Key**: `(source, factor_set, frequency, factor, date)`
+
 ### `test_data`
 Used for storing non-standard or derived data during testing or development phases.
 -   `id` (TEXT): Identifier.

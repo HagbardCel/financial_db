@@ -45,7 +45,15 @@ COMPARE_DATASETS = {
         "value_col": "value",
         "label_col": "long_name",
     },
+    "Fama-French Factors": {
+        "table": "factor_returns",
+        "date_col": "date",
+        "value_col": "value",
+        "return_series": True,
+    },
 }
+
+FREQ_LABELS = {"M": "Monthly", "D": "Daily"}
 
 
 def render(engine) -> None:
@@ -57,10 +65,58 @@ def render(engine) -> None:
         st.info("Select at least one dataset.")
         return
 
+    factor_frequency = None
+    if "Fama-French Factors" in chosen_datasets:
+        freq_df = db.read_sql(
+            engine,
+            "SELECT DISTINCT frequency FROM factor_returns ORDER BY frequency",
+        )
+        if freq_df.empty:
+            st.info("No factor data available.")
+            return
+        freq_options = freq_df["frequency"].tolist()
+        if len(freq_options) == 1:
+            factor_frequency = freq_options[0]
+            st.caption(f"Factor frequency: {FREQ_LABELS.get(factor_frequency, factor_frequency)}")
+        else:
+            factor_frequency = st.selectbox(
+                "Factor frequency",
+                freq_options,
+                format_func=lambda value: FREQ_LABELS.get(value, value),
+            )
+
     options = []
     option_map = {}
     for dataset_label in chosen_datasets:
         dataset = COMPARE_DATASETS[dataset_label]
+        if dataset_label == "Fama-French Factors":
+            if factor_frequency is None:
+                continue
+            factors_df = db.read_sql(
+                engine,
+                """
+                SELECT DISTINCT factor_set, factor
+                FROM factor_returns
+                WHERE frequency = :frequency
+                ORDER BY factor_set, factor
+                """,
+                params={"frequency": factor_frequency},
+            )
+            if factors_df.empty:
+                continue
+            for _, row in factors_df.iterrows():
+                option_key = f"{dataset_label}::{row['factor_set']}::{row['factor']}"
+                options.append(option_key)
+                option_map[option_key] = {
+                    **dataset,
+                    "factor_set": row["factor_set"],
+                    "factor": row["factor"],
+                    "frequency": factor_frequency,
+                    "dataset_label": dataset_label,
+                    "short_label": f"{row['factor_set']}::{row['factor']}",
+                }
+            continue
+
         ids_df = db.list_distinct(engine, dataset["table"], dataset["id_col"], dataset["label_col"])
         if ids_df.empty:
             continue
@@ -96,7 +152,20 @@ def render(engine) -> None:
     date_bounds = []
     for dataset_label in chosen_datasets:
         dataset = COMPARE_DATASETS[dataset_label]
-        min_date, max_date = db.get_date_bounds(engine, dataset["table"], dataset["date_col"])
+        if dataset_label == "Fama-French Factors" and factor_frequency is not None:
+            bounds_df = db.read_sql(
+                engine,
+                """
+                SELECT MIN(date) AS min_date, MAX(date) AS max_date
+                FROM factor_returns
+                WHERE frequency = :frequency
+                """,
+                params={"frequency": factor_frequency},
+            )
+            min_date = bounds_df.loc[0, "min_date"]
+            max_date = bounds_df.loc[0, "max_date"]
+        else:
+            min_date, max_date = db.get_date_bounds(engine, dataset["table"], dataset["date_col"])
         if min_date is not None and max_date is not None:
             date_bounds.append((min_date, max_date))
     if not date_bounds:
@@ -124,6 +193,7 @@ def render(engine) -> None:
     normalize = st.checkbox("Normalize to 100", value=True)
 
     selected_meta = [option_map[item] for item in selected]
+    label_is_return = {}
     label_counts = {}
     for meta in selected_meta:
         label_counts[meta["short_label"]] = label_counts.get(meta["short_label"], 0) + 1
@@ -132,18 +202,57 @@ def render(engine) -> None:
         if label_counts[label] > 1:
             label = f"{label} ({meta['dataset_label']})"
         meta["final_label"] = label
+        label_is_return[label] = meta.get("return_series", False)
 
     selected_by_table = {}
     for meta in selected_meta:
-        entry = selected_by_table.setdefault(
-            meta["table"],
-            {"meta": meta, "ids": [], "label_map": {}},
-        )
-        entry["ids"].append(meta["id"])
-        entry["label_map"][meta["id"]] = meta["final_label"]
+        if meta["table"] == "factor_returns":
+            entry = selected_by_table.setdefault(
+                "factor_returns",
+                {"pairs": [], "label_map": {}, "frequency": meta["frequency"]},
+            )
+            key = f"{meta['factor_set']}::{meta['factor']}"
+            entry["pairs"].append((meta["factor_set"], meta["factor"]))
+            entry["label_map"][key] = meta["final_label"]
+        else:
+            entry = selected_by_table.setdefault(
+                meta["table"],
+                {"meta": meta, "ids": [], "label_map": {}},
+            )
+            entry["ids"].append(meta["id"])
+            entry["label_map"][meta["id"]] = meta["final_label"]
 
     frames = []
     for table, entry in selected_by_table.items():
+        if table == "factor_returns":
+            params = {
+                "frequency": entry["frequency"],
+                "start_date": start_date,
+                "end_date": end_date,
+            }
+            clauses = []
+            for idx, (factor_set, factor) in enumerate(entry["pairs"]):
+                params[f"set_{idx}"] = factor_set
+                params[f"factor_{idx}"] = factor
+                clauses.append(f"(factor_set = :set_{idx} AND factor = :factor_{idx})")
+            where_clause = " OR ".join(clauses)
+            query = f"""
+                SELECT date, factor_set, factor, value
+                FROM factor_returns
+                WHERE frequency = :frequency
+                  AND date BETWEEN :start_date AND :end_date
+                  AND ({where_clause})
+                ORDER BY date
+            """
+            df = db.read_sql(engine, query, params=params)
+            if df.empty:
+                continue
+            df["date"] = pd.to_datetime(df["date"])
+            df["id"] = df["factor_set"] + "::" + df["factor"]
+            df["label"] = df["id"].map(entry["label_map"])
+            frames.append(df[["date", "label", "value"]])
+            continue
+
         dataset = entry["meta"]
         query = f"""
             SELECT {dataset["date_col"]} AS date, {dataset["id_col"]} AS id, {dataset["value_col"]} AS value
@@ -172,18 +281,28 @@ def render(engine) -> None:
 
     if not pivot.empty:
         span_days = (pivot.index.max() - pivot.index.min()).days
-        if span_days > 365:
-            pivot = pivot.resample("W").last().dropna(how="all")
-            st.caption("Auto-resampled to weekly for performance (range > 1 year).")
+    if span_days > 365:
+        pivot = pivot.resample("W").last().dropna(how="all")
+        st.caption("Auto-resampled to weekly for performance (range > 1 year).")
 
     if normalize:
-        pivot = pivot.apply(analytics.normalize_to_base, axis=0)
+        pivot = pivot.copy()
+        for column in pivot.columns:
+            if not label_is_return.get(column, False):
+                pivot[column] = analytics.normalize_to_base(pivot[column])
 
     st.subheader("Series")
     st.line_chart(pivot, use_container_width=True)
 
     st.subheader("Correlation (Returns)")
-    returns = pivot.pct_change().dropna()
+    returns = pd.DataFrame(index=pivot.index)
+    for label in pivot.columns:
+        series = pivot[label]
+        if label_is_return.get(label, False):
+            returns[label] = series
+        else:
+            returns[label] = series.pct_change()
+    returns = returns.dropna()
     corr = returns.corr()
     st.dataframe(corr, use_container_width=True)
 

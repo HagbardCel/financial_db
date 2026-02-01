@@ -16,6 +16,11 @@ TABLES = {
         "date_col": "date",
         "filters": ["region", "rate_type", "maturity", "currency"],
     },
+    "Factor Returns": {
+        "table": "factor_returns",
+        "date_col": "date",
+        "filters": ["source", "factor_set", "frequency", "factor", "unit"],
+    },
     "Shiller Derived View": {"table": "shiller_derived_view", "date_col": "date", "id_col": "id"},
 }
 

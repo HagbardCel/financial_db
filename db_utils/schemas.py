@@ -29,6 +29,10 @@ TABLE_SCHEMAS = {
     'commodity_prices': {
         'columns': ['symbol', 'date', 'open', 'high', 'low', 'close', 'volume'],
         'primary_keys': ['symbol', 'date']
+    },
+    'factor_returns': {
+        'columns': ['source', 'factor_set', 'frequency', 'factor', 'date', 'value', 'unit'],
+        'primary_keys': ['source', 'factor_set', 'frequency', 'factor', 'date']
     }
 }
 

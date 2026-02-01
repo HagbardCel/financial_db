@@ -4,7 +4,7 @@ import streamlit as st
 from sqlalchemy import text
 
 from db_utils import database as db
-from dashboard.views import browser, compare, derived, overview, prices, rates, series
+from dashboard.views import browser, compare, derived, factors, overview, prices, rates, series
 
 
 @st.cache_resource
@@ -33,6 +33,7 @@ def main() -> None:
         "Series Explorer": series.render,
         "Compare & Correlate": compare.render,
         "Rates": rates.render,
+        "Factors": factors.render,
         "Derived Metrics": derived.render,
         "Data Browser / Export": browser.render,
     }

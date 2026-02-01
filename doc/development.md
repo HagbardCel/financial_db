@@ -82,6 +82,11 @@ python -m data_fetchers.commodities
 python -m data_fetchers.gold_prices
 ```
 
+**Fama-French Factors (Monthly)**:
+```bash
+python -m data_fetchers.fama_french_factors --sets ff3 ff5 mom
+```
+
 ### OpenBB Provider Configuration
 OpenBB pulls data via providers; set provider keys via env vars as needed. Optional overrides:
 - `OPENBB_EQUITY_PROVIDER`

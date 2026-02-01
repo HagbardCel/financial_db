@@ -62,6 +62,22 @@ CREATE TABLE IF NOT EXISTS test_data (
     PRIMARY KEY (id, date)
 );
 
+CREATE TABLE IF NOT EXISTS factor_returns (
+    source TEXT NOT NULL,
+    factor_set TEXT NOT NULL,
+    frequency CHAR(1) NOT NULL,
+    factor TEXT NOT NULL,
+    date DATE NOT NULL,
+    value NUMERIC NOT NULL,
+    unit TEXT NOT NULL DEFAULT 'decimal',
+    PRIMARY KEY (source, factor_set, frequency, factor, date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_factor_returns_set_freq_factor_date
+    ON factor_returns (factor_set, frequency, factor, date);
+CREATE INDEX IF NOT EXISTS idx_factor_returns_date
+    ON factor_returns (date);
+
 -- Derived views
 
 -- Create a view for derived Shiller CAPE data

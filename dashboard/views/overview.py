@@ -13,6 +13,7 @@ TABLES = [
     {"label": "Commodity Prices", "table": "commodity_prices", "date_col": "date"},
     {"label": "Interest Rates", "table": "interest_rates", "date_col": "date"},
     {"label": "Macro Data", "table": "macro_data", "date_col": "date"},
+    {"label": "Factor Returns", "table": "factor_returns", "date_col": "date"},
     {"label": "Shiller Derived View", "table": "shiller_derived_view", "date_col": "date"},
 ]
 
