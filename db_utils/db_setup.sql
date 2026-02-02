@@ -95,6 +95,38 @@ CREATE INDEX IF NOT EXISTS idx_portfolio_returns_set_universe_freq_portfolio_dat
 CREATE INDEX IF NOT EXISTS idx_portfolio_returns_date
     ON portfolio_returns (date);
 
+CREATE TABLE IF NOT EXISTS characteristic_metadata (
+    source TEXT NOT NULL,
+    characteristic_set TEXT NOT NULL,
+    characteristic TEXT NOT NULL,
+    name TEXT,
+    category TEXT,
+    paper_ref TEXT,
+    notes TEXT,
+    PRIMARY KEY (source, characteristic_set, characteristic)
+);
+
+CREATE INDEX IF NOT EXISTS idx_characteristic_metadata_set_characteristic
+    ON characteristic_metadata (characteristic_set, characteristic);
+
+CREATE TABLE IF NOT EXISTS portfolio_characteristics (
+    source TEXT NOT NULL,
+    portfolio_set TEXT NOT NULL,
+    universe TEXT NOT NULL,
+    frequency CHAR(1) NOT NULL,
+    portfolio TEXT NOT NULL,
+    date DATE NOT NULL,
+    characteristic TEXT NOT NULL,
+    value NUMERIC NOT NULL,
+    unit TEXT NOT NULL DEFAULT 'raw',
+    PRIMARY KEY (source, portfolio_set, universe, frequency, portfolio, date, characteristic)
+);
+
+CREATE INDEX IF NOT EXISTS idx_portfolio_characteristics_set_freq_char_date
+    ON portfolio_characteristics (portfolio_set, frequency, characteristic, date);
+CREATE INDEX IF NOT EXISTS idx_portfolio_characteristics_date
+    ON portfolio_characteristics (date);
+
 -- Derived views
 
 -- Create a view for derived Shiller CAPE data

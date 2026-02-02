@@ -63,7 +63,7 @@ Stores general macroeconomic indicators.
 
 ### `factor_returns`
 Stores factor return series (e.g., Fama-French).
--   `source` (TEXT): Data source identifier (e.g., `ken_french`).
+-   `source` (TEXT): Data source identifier (e.g., `ken_french`, `aqr`, `open_asset_pricing`).
 -   `factor_set` (TEXT): Factor set name (e.g., `ff3`, `ff5`, `mom`).
 -   `frequency` (CHAR(1)): Observation frequency (`M` for monthly).
 -   `factor` (TEXT): Factor label (e.g., `Mkt-RF`, `SMB`, `HML`, `RMW`, `CMA`, `UMD`, `RF`).
@@ -83,6 +83,30 @@ Stores long-only portfolio return series (e.g., AQR and Ken French deciles).
 -   `value` (NUMERIC): Portfolio return stored as a **decimal** (e.g., `0.0123` = `1.23%`).
 -   `unit` (TEXT): Unit marker (default `decimal`).
 -   **Primary Key**: `(source, portfolio_set, universe, frequency, portfolio, date)`
+
+### `characteristic_metadata`
+Stores characteristic/signal metadata (identifier + descriptive fields).
+-   `source` (TEXT): Data source identifier (e.g., `open_asset_pricing`).
+-   `characteristic_set` (TEXT): Characteristic collection identifier (e.g., `oapd_signals`).
+-   `characteristic` (TEXT): Characteristic/signal code used in time-series tables.
+-   `name` (TEXT): Human-readable characteristic name (nullable).
+-   `category` (TEXT): Characteristic category/group (nullable).
+-   `paper_ref` (TEXT): Citation/reference field (nullable).
+-   `notes` (TEXT): Additional notes/metadata (nullable).
+-   **Primary Key**: `(source, characteristic_set, characteristic)`
+
+### `portfolio_characteristics`
+Stores portfolio-level characteristic scores over time.
+-   `source` (TEXT): Data source identifier.
+-   `portfolio_set` (TEXT): Portfolio family identifier.
+-   `universe` (TEXT): Universe/region label.
+-   `frequency` (CHAR(1)): Observation frequency (`M`/`D`).
+-   `portfolio` (TEXT): Portfolio label within the family.
+-   `date` (DATE): Observation date.
+-   `characteristic` (TEXT): Characteristic/signal code.
+-   `value` (NUMERIC): Portfolio-level characteristic score.
+-   `unit` (TEXT): Unit marker (default `raw`).
+-   **Primary Key**: `(source, portfolio_set, universe, frequency, portfolio, date, characteristic)`
 
 ### `test_data`
 Used for storing non-standard or derived data during testing or development phases.

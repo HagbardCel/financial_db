@@ -6,10 +6,10 @@ from typing import Dict, Iterable, List, Optional
 
 import numpy as np
 import pandas as pd
-import requests
 from pandas.tseries.offsets import MonthEnd
 
 from data_fetchers.base_fetcher import BaseFetcher
+from data_fetchers.download_utils import download_url_to_path, use_cached_file
 from db_utils.config import get_database_config
 
 SOURCE = "aqr"
@@ -205,14 +205,11 @@ class AQRPortfolioFetcher(BaseFetcher):
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         path = self.cache_dir / f"{key}.xlsx"
 
-        if path.exists() and not self.refresh:
-            self.logger.info("Using cached file for %s", key)
+        if use_cached_file(path, self.refresh, self.logger):
             return path
 
         self.logger.info("Downloading %s", dataset["url"])
-        response = requests.get(dataset["url"], timeout=30)
-        response.raise_for_status()
-        path.write_bytes(response.content)
+        download_url_to_path(dataset["url"], path, timeout=30)
         return path
 
     def fetch(self) -> Dict[str, Dict[str, pd.DataFrame]]:
@@ -303,14 +300,11 @@ class AQRFactorsFetcher(BaseFetcher):
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         path = self.cache_dir / f"{key}.xlsx"
 
-        if path.exists() and not self.refresh:
-            self.logger.info("Using cached file for %s", key)
+        if use_cached_file(path, self.refresh, self.logger):
             return path
 
         self.logger.info("Downloading %s", dataset["url"])
-        response = requests.get(dataset["url"], timeout=30)
-        response.raise_for_status()
-        path.write_bytes(response.content)
+        download_url_to_path(dataset["url"], path, timeout=30)
         return path
 
     def fetch(self) -> Dict[str, Dict[str, pd.DataFrame]]:

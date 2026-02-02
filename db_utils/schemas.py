@@ -37,6 +37,14 @@ TABLE_SCHEMAS = {
     'portfolio_returns': {
         'columns': ['source', 'portfolio_set', 'universe', 'frequency', 'portfolio', 'date', 'value', 'unit'],
         'primary_keys': ['source', 'portfolio_set', 'universe', 'frequency', 'portfolio', 'date']
+    },
+    'characteristic_metadata': {
+        'columns': ['source', 'characteristic_set', 'characteristic', 'name', 'category', 'paper_ref', 'notes'],
+        'primary_keys': ['source', 'characteristic_set', 'characteristic']
+    },
+    'portfolio_characteristics': {
+        'columns': ['source', 'portfolio_set', 'universe', 'frequency', 'portfolio', 'date', 'characteristic', 'value', 'unit'],
+        'primary_keys': ['source', 'portfolio_set', 'universe', 'frequency', 'portfolio', 'date', 'characteristic']
     }
 }
 

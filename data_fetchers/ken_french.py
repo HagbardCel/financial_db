@@ -8,10 +8,10 @@ from typing import Dict, Iterable, List
 
 import numpy as np
 import pandas as pd
-import requests
 from pandas.tseries.offsets import MonthEnd
 
 from data_fetchers.base_fetcher import BaseFetcher
+from data_fetchers.download_utils import download_first_available_url, use_cached_file
 from db_utils.config import get_database_config
 
 SOURCE = "ken_french"
@@ -185,28 +185,14 @@ def parse_ken_french_monthly(text: str, column_map: Dict[str, str]) -> pd.DataFr
 
 
 def _download_ken_french_zip(urls: Iterable[str], zip_path: Path, refresh: bool, logger) -> Path:
-    if zip_path.exists() and not refresh:
-        logger.info("Using cached file for %s", zip_path.name)
+    if use_cached_file(zip_path, refresh, logger):
         return zip_path
 
-    last_error: Exception | None = None
-    for url in urls:
+    attempted = list(urls)
+    for url in attempted:
         logger.info("Downloading %s", url)
-        response = requests.get(url, timeout=30)
-        if response.status_code == 404:
-            last_error = requests.HTTPError(
-                f"404 Client Error: Not Found for url: {url}",
-                response=response,
-            )
-            continue
-        response.raise_for_status()
-        zip_path.parent.mkdir(parents=True, exist_ok=True)
-        zip_path.write_bytes(response.content)
-        return zip_path
-
-    if last_error:
-        raise last_error
-    raise ValueError("No download URLs provided for Ken French dataset.")
+    download_first_available_url(attempted, zip_path, timeout=30)
+    return zip_path
 
 
 def _find_portfolio_header_line(lines: List[str]) -> int:
