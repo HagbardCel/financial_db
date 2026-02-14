@@ -13,6 +13,28 @@ Out of scope:
 - notebooks
 - historical planning docs
 
+## Implementation Status Update (2026-02-14)
+
+Status of findings F1-F9 after implementation:
+
+| ID | Status | Evidence |
+|---|---|---|
+| F1 | Implemented | Shared DB-session batch ingest via `run_with_repository` loops in `data_fetchers/stock_prices.py`, `data_fetchers/commodities.py`, and `data_fetchers/factor_etfs.py`. |
+| F2 | Implemented | Central identifier-safe query assembly in `db_utils/database.py` (`build_select_query`, `validate_identifier`, helpers) with tests in `tests/test_sql_query_builder.py`. |
+| F3 | Implemented | Shared dataset descriptors and query helpers consolidated in `dashboard/data_access.py`; views now consume this layer. |
+| F4 | Implemented | Metadata/data-access caching via `@st.cache_data` wrappers in `dashboard/data_access.py`. |
+| F5 | Implemented | `data_fetchers/shiller_cape.py` refactored to argparse + timeout/retry + tempfile cleanup + helper tests. |
+| F6 | Implemented | Lean runtime dependencies in `pyproject.toml`; optional groups split into `dashboard`, `analysis`, `dev`; lockfile synced in `uv.lock`. |
+| F7 | Implemented | Public `close_connection_pool()` in `db_utils/database.py`; fixture-safe tests in `tests/test_database.py` no longer import private globals. |
+| F8 | Implemented | Canonical docs root declared (`db_utils/paths.py`: `DOCS_ROOT`), with root pointers in `README.md`, `doc/README.md`, and `docs/README.md`. |
+| F9 | Implemented | Dashboard query contract coverage added in `tests/test_dashboard_data_access.py` (dataset contracts + filter/date query semantics). |
+
+### Remaining Gaps
+
+- No benchmark timings were recorded for Scenario A (ingestion throughput before/after F1).
+- Scenario C is partially covered (DB env/connection and fetcher guardrails), but no full failure-matrix report is documented.
+- This document's original finding evidence line numbers remain a historical snapshot and may not match current file offsets.
+
 ## Current Architecture Snapshot
 Runtime flow is clear and pragmatic:
 1. Fetchers ingest external data and normalize to pandas (`data_fetchers/*`).
@@ -191,7 +213,7 @@ Recommendation:
 - Add lightweight tests for shared query-builder helpers and dataset registry contracts.
 - Avoid full UI integration tests; target pure query-shaping functions first.
 
-## Prioritized Backlog
+## Original Prioritized Backlog (Historical Snapshot)
 
 | ID | Recommendation | Impact (1-5) | Effort (1-5) | Risk Reduction (1-5) | Runtime Overhead Change | Priority | Acceptance Criteria |
 |---|---|---:|---:|---:|---|---|---|
@@ -204,6 +226,17 @@ Recommendation:
 | F6 | Split dependencies into minimal runtime and extras | 3 | 2 | 3 | Positive | Next | Default env installs only runtime deps; optional groups cover dashboard/dev/analysis. |
 | F9 | Add dashboard/query contract tests | 3 | 2 | 3 | Neutral | Next | Query helper tests cover each dataset type and filter/date combinations. |
 | F8 | Canonicalize docs root and add pointers | 2 | 1 | 2 | Neutral | Later | One docs root is declared and linked from README and path constants. |
+
+## Validation Snapshot (Post-Implementation)
+
+- Query/data-access and shared-helper regression suite:
+  - `tests/test_dashboard_data_access.py`
+  - `tests/test_sql_query_builder.py`
+  - `tests/test_base_fetcher.py`
+  - `tests/test_shiller_cape_cli.py`
+  - `tests/test_paths.py`
+  - `tests/test_database.py` (environment-dependent; skips when DB env is unavailable)
+- Latest local run result: `34 passed, 3 skipped`.
 
 ## Potential Interface Changes (if backlog is implemented)
 No mandatory public API changes are required for this assessment. Potential incremental interface changes:
