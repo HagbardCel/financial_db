@@ -346,6 +346,8 @@ def fetch_factor_data(
     start_date: Any | None = None,
     end_date: Any | None = None,
 ) -> pd.DataFrame:
+    if not options:
+        raise ValueError("options must contain at least one factor option.")
     pairs = parse_factor_options(options)
     params: Dict[str, Any] = {"frequency": frequency}
     pair_clauses = []
