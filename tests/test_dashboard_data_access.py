@@ -162,6 +162,59 @@ def test_get_rate_maturities_builds_dimension_filter_query(monkeypatch):
     assert maturities == ["1Y", "2Y"]
 
 
+def test_fetch_rate_curve_builds_snapshot_query(monkeypatch):
+    engine = create_engine("sqlite://")
+    frame = pd.DataFrame({"maturity": ["1Y"], "interest_rate": [0.04]})
+    captured = _capture_read_sql(monkeypatch, frame)
+
+    result = da.fetch_rate_curve(
+        engine,
+        snapshot_date="2024-01-31",
+        region="US",
+        rate_type="gov",
+        currency="USD",
+    )
+
+    assert captured["query"] == (
+        "SELECT maturity, interest_rate FROM interest_rates "
+        "WHERE date = :snapshot_date AND region = :region AND rate_type = :rate_type AND currency = :currency"
+    )
+    assert captured["params"] == {
+        "snapshot_date": "2024-01-31",
+        "region": "US",
+        "rate_type": "gov",
+        "currency": "USD",
+    }
+    assert list(result.columns) == ["maturity", "interest_rate"]
+
+
+def test_fetch_rate_history_builds_time_series_query(monkeypatch):
+    engine = create_engine("sqlite://")
+    frame = pd.DataFrame({"date": ["2024-01-31"], "interest_rate": [0.04]})
+    captured = _capture_read_sql(monkeypatch, frame)
+
+    result = da.fetch_rate_history(
+        engine,
+        region="US",
+        rate_type="gov",
+        currency="USD",
+        maturity="10Y",
+    )
+
+    assert captured["query"] == (
+        "SELECT date, interest_rate FROM interest_rates "
+        "WHERE region = :region AND rate_type = :rate_type AND currency = :currency AND maturity = :maturity "
+        "ORDER BY date ASC"
+    )
+    assert captured["params"] == {
+        "region": "US",
+        "rate_type": "gov",
+        "currency": "USD",
+        "maturity": "10Y",
+    }
+    assert list(result.columns) == ["date", "interest_rate"]
+
+
 def test_get_factor_options_applies_frequency_and_factor_set_filters(monkeypatch):
     engine = create_engine("sqlite://")
     frame = pd.DataFrame(

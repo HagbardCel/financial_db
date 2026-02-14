@@ -339,6 +339,65 @@ def get_rate_maturities(
     return df["maturity"].tolist()
 
 
+def fetch_rate_curve(
+    engine: Engine,
+    snapshot_date: Any,
+    region: str,
+    rate_type: str,
+    currency: str,
+) -> pd.DataFrame:
+    query = db.build_select_query(
+        table="interest_rates",
+        columns=["maturity", "interest_rate"],
+        where=[
+            db.where_eq("date", "snapshot_date"),
+            db.where_eq("region", "region"),
+            db.where_eq("rate_type", "rate_type"),
+            db.where_eq("currency", "currency"),
+        ],
+    )
+    return db.read_sql(
+        engine,
+        query,
+        params={
+            "snapshot_date": snapshot_date,
+            "region": region,
+            "rate_type": rate_type,
+            "currency": currency,
+        },
+    )
+
+
+def fetch_rate_history(
+    engine: Engine,
+    region: str,
+    rate_type: str,
+    currency: str,
+    maturity: str,
+) -> pd.DataFrame:
+    query = db.build_select_query(
+        table="interest_rates",
+        columns=["date", "interest_rate"],
+        where=[
+            db.where_eq("region", "region"),
+            db.where_eq("rate_type", "rate_type"),
+            db.where_eq("currency", "currency"),
+            db.where_eq("maturity", "maturity"),
+        ],
+        order_by=[db.order_by_clause("date")],
+    )
+    return db.read_sql(
+        engine,
+        query,
+        params={
+            "region": region,
+            "rate_type": rate_type,
+            "currency": currency,
+            "maturity": maturity,
+        },
+    )
+
+
 def fetch_factor_data(
     engine: Engine,
     frequency: str,

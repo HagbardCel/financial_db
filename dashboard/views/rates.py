@@ -4,8 +4,13 @@ import re
 import pandas as pd
 import streamlit as st
 
-from dashboard.data_access import get_rate_dimensions, get_rate_maturities, get_table_bounds
-from db_utils import database as db
+from dashboard.data_access import (
+    fetch_rate_curve,
+    fetch_rate_history,
+    get_rate_dimensions,
+    get_rate_maturities,
+    get_table_bounds,
+)
 
 
 def _maturity_to_years(value: str) -> float:
@@ -42,23 +47,12 @@ def render(engine) -> None:
         return
     snapshot_date = st.date_input("Snapshot date", value=max_date)
 
-    curve_query = """
-        SELECT maturity, interest_rate
-        FROM interest_rates
-        WHERE date = :snapshot_date
-          AND region = :region
-          AND rate_type = :rate_type
-          AND currency = :currency
-    """
-    curve = db.read_sql(
+    curve = fetch_rate_curve(
         engine,
-        curve_query,
-        params={
-            "snapshot_date": snapshot_date,
-            "region": region,
-            "rate_type": rate_type,
-            "currency": currency,
-        },
+        snapshot_date=snapshot_date,
+        region=region,
+        rate_type=rate_type,
+        currency=currency,
     )
     if curve.empty:
         st.info("No data for the selected snapshot.")
@@ -80,24 +74,12 @@ def render(engine) -> None:
         return
 
     maturity = st.selectbox("Maturity", _sort_maturities(maturities))
-    series_query = """
-        SELECT date, interest_rate
-        FROM interest_rates
-        WHERE region = :region
-          AND rate_type = :rate_type
-          AND currency = :currency
-          AND maturity = :maturity
-        ORDER BY date
-    """
-    series = db.read_sql(
+    series = fetch_rate_history(
         engine,
-        series_query,
-        params={
-            "region": region,
-            "rate_type": rate_type,
-            "currency": currency,
-            "maturity": maturity,
-        },
+        region=region,
+        rate_type=rate_type,
+        currency=currency,
+        maturity=maturity,
     )
     if series.empty:
         st.info("No history for the selected maturity.")
