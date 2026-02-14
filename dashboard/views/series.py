@@ -204,13 +204,19 @@ def render(engine) -> None:
     transform = st.selectbox("Transform", ["Level", "% Change", "YoY % Change"])
     normalize = st.checkbox("Normalize to 100", value=False)
 
-    query = f"""
-        SELECT {dataset["date_col"]} AS date, {dataset["id_col"]} AS id, {dataset["value_col"]} AS value
-        FROM {dataset["table"]}
-        WHERE {dataset["id_col"]} = ANY(:ids)
-          AND {dataset["date_col"]} BETWEEN :start_date AND :end_date
-        ORDER BY {dataset["date_col"]}
-    """
+    query = db.build_select_query(
+        table=dataset["table"],
+        columns={
+            dataset["date_col"]: "date",
+            dataset["id_col"]: "id",
+            dataset["value_col"]: "value",
+        },
+        where=[
+            db.where_any(dataset["id_col"], "ids"),
+            db.where_between(dataset["date_col"], "start_date", "end_date"),
+        ],
+        order_by=[db.order_by_clause(dataset["date_col"])],
+    )
     df = db.read_sql(
         engine,
         query,

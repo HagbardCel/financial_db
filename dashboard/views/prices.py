@@ -38,13 +38,15 @@ def render(engine) -> None:
 
     freq = st.selectbox("Resample", ["D", "W", "M"], index=0)
 
-    query = f"""
-        SELECT date, open, high, low, close, volume
-        FROM {dataset["table"]}
-        WHERE {dataset["symbol_col"]} = :symbol
-          AND date BETWEEN :start_date AND :end_date
-        ORDER BY date
-    """
+    query = db.build_select_query(
+        table=dataset["table"],
+        columns=["date", "open", "high", "low", "close", "volume"],
+        where=[
+            db.where_eq(dataset["symbol_col"], "symbol"),
+            db.where_between("date", "start_date", "end_date"),
+        ],
+        order_by=[db.order_by_clause("date")],
+    )
     df = db.read_sql(
         engine,
         query,

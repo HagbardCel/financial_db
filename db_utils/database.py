@@ -4,7 +4,8 @@ import psycopg2
 from psycopg2 import pool
 import pandas as pd
 import numpy as np
-from typing import Dict, Any, Iterable, List, Tuple, Optional
+import re
+from typing import Dict, Any, Iterable, List, Tuple, Optional, Mapping, Sequence
 from sqlalchemy import bindparam, create_engine, text
 from sqlalchemy.engine import Engine, URL
 from .schemas import get_schema
@@ -12,6 +13,7 @@ from .config import get_database_config
 
 # Global variable to store the connection pool
 _CONNECTION_POOL = None
+_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 def init_connection_pool(config: Dict[str, str], minconn: int = 1, maxconn: int = 10):
     """Initialize the global connection pool."""
@@ -25,6 +27,77 @@ def init_connection_pool(config: Dict[str, str], minconn: int = 1, maxconn: int 
         
         _CONNECTION_POOL = pool.ThreadedConnectionPool(minconn, maxconn, **config)
     return _CONNECTION_POOL
+
+
+def validate_identifier(name: str, kind: str = "identifier") -> str:
+    """Validate SQL identifiers used in query assembly."""
+    if not isinstance(name, str) or not name or not _IDENTIFIER_RE.match(name):
+        raise ValueError(f"Invalid SQL {kind}: {name!r}")
+    return name
+
+
+def where_eq(column: str, param: str) -> str:
+    return f"{validate_identifier(column, 'column')} = :{validate_identifier(param, 'param')}"
+
+
+def where_any(column: str, param: str) -> str:
+    return f"{validate_identifier(column, 'column')} = ANY(:{validate_identifier(param, 'param')})"
+
+
+def where_between(column: str, start_param: str, end_param: str) -> str:
+    col = validate_identifier(column, "column")
+    start = validate_identifier(start_param, "param")
+    end = validate_identifier(end_param, "param")
+    return f"{col} BETWEEN :{start} AND :{end}"
+
+
+def order_by_clause(column: str, descending: bool = False) -> str:
+    direction = "DESC" if descending else "ASC"
+    return f"{validate_identifier(column, 'column')} {direction}"
+
+
+def build_select_query(
+    table: str,
+    columns: Sequence[str] | Mapping[str, str],
+    where: Optional[Sequence[str]] = None,
+    order_by: Optional[Sequence[str]] = None,
+    limit_param: Optional[str] = None,
+) -> str:
+    """
+    Build a SELECT query while validating all dynamic SQL identifiers.
+    Supports:
+    - columns as list[str]
+    - columns as mapping[source_column -> alias]
+    - wildcard columns=['*'] for browse/export use cases
+    """
+    table_name = validate_identifier(table, "table")
+
+    select_parts: List[str] = []
+    if isinstance(columns, Mapping):
+        if not columns:
+            raise ValueError("columns mapping cannot be empty")
+        for source_col, alias in columns.items():
+            source = validate_identifier(source_col, "column")
+            alias_name = validate_identifier(alias, "alias")
+            select_parts.append(f"{source} AS {alias_name}")
+    else:
+        column_list = list(columns)
+        if not column_list:
+            raise ValueError("columns list cannot be empty")
+        if column_list == ["*"]:
+            select_parts = ["*"]
+        else:
+            select_parts = [validate_identifier(col, "column") for col in column_list]
+
+    query = f"SELECT {', '.join(select_parts)} FROM {table_name}"
+    if where:
+        query += " WHERE " + " AND ".join(where)
+    if order_by:
+        query += " ORDER BY " + ", ".join(order_by)
+    if limit_param:
+        limit_key = validate_identifier(limit_param, "param")
+        query += f" LIMIT :{limit_key}"
+    return query
 
 class DatabaseConnection:
     def __init__(self, config: Optional[Dict[str, str]] = None):
@@ -118,13 +191,15 @@ def read_table(
     order_by: Optional[Iterable[str]] = None,
     expanding: Optional[List[str]] = None,
 ) -> pd.DataFrame:
-    columns_sql = ", ".join(columns)
-    query = f"SELECT {columns_sql} FROM {table}"
-    if where:
-        query += f" WHERE {where}"
+    order_by_clauses = None
     if order_by:
-        order_sql = ", ".join(order_by)
-        query += f" ORDER BY {order_sql}"
+        order_by_clauses = [order_by_clause(col) for col in order_by]
+    query = build_select_query(
+        table=table,
+        columns=columns,
+        where=[where] if where else None,
+        order_by=order_by_clauses,
+    )
 
     if expanding:
         return read_sql_expanding(engine, query, params=params, expanding=expanding)
@@ -138,17 +213,18 @@ def list_distinct(
     label_col: Optional[str] = None,
 ) -> pd.DataFrame:
     if label_col:
-        query = f"""
-            SELECT DISTINCT {id_col} AS id, {label_col} AS label
-            FROM {table}
-            ORDER BY {id_col}
-        """
+        query = build_select_query(
+            table=table,
+            columns={id_col: "id", label_col: "label"},
+            order_by=[order_by_clause(id_col)],
+        )
     else:
-        query = f"""
-            SELECT DISTINCT {id_col} AS id
-            FROM {table}
-            ORDER BY {id_col}
-        """
+        query = build_select_query(
+            table=table,
+            columns={id_col: "id"},
+            order_by=[order_by_clause(id_col)],
+        )
+    query = query.replace("SELECT ", "SELECT DISTINCT ", 1)
     return read_sql(engine, query)
 
 
@@ -157,10 +233,13 @@ def get_date_bounds(
     table: str,
     date_col: str,
 ) -> Tuple[Optional[pd.Timestamp], Optional[pd.Timestamp]]:
-    query = f"""
-        SELECT MIN({date_col}) AS min_date, MAX({date_col}) AS max_date
-        FROM {table}
-    """
+    validated_table = validate_identifier(table, "table")
+    validated_date_col = validate_identifier(date_col, "column")
+    query = (
+        f"SELECT MIN({validated_date_col}) AS min_date, "
+        f"MAX({validated_date_col}) AS max_date "
+        f"FROM {validated_table}"
+    )
     df = read_sql(engine, query)
     min_date = df.loc[0, "min_date"]
     max_date = df.loc[0, "max_date"]
@@ -170,10 +249,13 @@ def get_date_bounds(
 
 
 def get_table_stats(engine: Engine, table: str, date_col: str) -> Dict[str, Any]:
-    query = f"""
-        SELECT COUNT(*) AS row_count, MIN({date_col}) AS min_date, MAX({date_col}) AS max_date
-        FROM {table}
-    """
+    validated_table = validate_identifier(table, "table")
+    validated_date_col = validate_identifier(date_col, "column")
+    query = (
+        f"SELECT COUNT(*) AS row_count, MIN({validated_date_col}) AS min_date, "
+        f"MAX({validated_date_col}) AS max_date "
+        f"FROM {validated_table}"
+    )
     df = read_sql(engine, query)
     return {
         "row_count": int(df.loc[0, "row_count"]),

@@ -39,7 +39,7 @@ def render(engine) -> None:
         options = ids_df["id"].tolist()
         selected_ids = st.multiselect("Filter IDs", options)
         if selected_ids:
-            filters.append(f"{dataset['id_col']} = ANY(:ids)")
+            filters.append(db.where_any(dataset["id_col"], "ids"))
             params["ids"] = selected_ids
 
     if "filters" in dataset:
@@ -48,7 +48,7 @@ def render(engine) -> None:
             selected = st.multiselect(f"Filter {col}", options)
             if selected:
                 key = f"{col}_filter"
-                filters.append(f"{col} = ANY(:{key})")
+                filters.append(db.where_any(col, key))
                 params[key] = selected
 
     min_date, max_date = db.get_date_bounds(engine, dataset["table"], dataset["date_col"])
@@ -58,17 +58,18 @@ def render(engine) -> None:
     date_range = st.date_input("Date range", value=(min_date, max_date))
     if isinstance(date_range, (list, tuple)) and len(date_range) == 2:
         start_date, end_date = date_range
-        filters.append(f"{dataset['date_col']} BETWEEN :start_date AND :end_date")
+        filters.append(db.where_between(dataset["date_col"], "start_date", "end_date"))
         params["start_date"] = start_date
         params["end_date"] = end_date
 
     limit = st.number_input("Row limit", min_value=100, max_value=5000, value=1000, step=100)
-
-    where_clause = " AND ".join(filters)
-    query = f"SELECT * FROM {dataset['table']}"
-    if where_clause:
-        query += f" WHERE {where_clause}"
-    query += f" ORDER BY {dataset['date_col']} DESC LIMIT :limit"
+    query = db.build_select_query(
+        table=dataset["table"],
+        columns=["*"],
+        where=filters or None,
+        order_by=[db.order_by_clause(dataset["date_col"], descending=True)],
+        limit_param="limit",
+    )
     params["limit"] = int(limit)
 
     st.code(query, language="sql")
