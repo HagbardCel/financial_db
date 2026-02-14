@@ -1,144 +1,94 @@
 from __future__ import annotations
 
+import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 import streamlit as st
-import matplotlib.pyplot as plt
 
 from dashboard import analytics
-from db_utils import database as db
+from dashboard.data_access import (
+    COMPARE_DATASETS,
+    FACTOR_FREQ_LABELS,
+    build_label_map,
+    fetch_factor_data,
+    fetch_value_series,
+    get_dataset_bounds,
+    get_factor_bounds,
+    get_factor_frequencies,
+    get_factor_options,
+    list_series_ids,
+)
 
 
-COMPARE_DATASETS = {
-    "Assets Prices": {
-        "table": "assets_prices",
-        "id_col": "id",
-        "date_col": "date",
-        "value_col": "price_usd",
-        "label_col": None,
-    },
-    "Indices": {
-        "table": "indices",
-        "id_col": "id",
-        "date_col": "date",
-        "value_col": "value",
-        "label_col": "index_name",
-    },
-    "Macro Data": {
-        "table": "macro_data",
-        "id_col": "id",
-        "date_col": "date",
-        "value_col": "value",
-        "label_col": "long_name",
-    },
-    "Commodity Prices (Close)": {
-        "table": "commodity_prices",
-        "id_col": "symbol",
-        "date_col": "date",
-        "value_col": "close",
-        "label_col": None,
-    },
-    "Shiller Derived": {
-        "table": "shiller_derived_view",
-        "id_col": "id",
-        "date_col": "date",
-        "value_col": "value",
-        "label_col": "long_name",
-    },
-    "Fama-French Factors": {
-        "table": "factor_returns",
-        "date_col": "date",
-        "value_col": "value",
-        "return_series": True,
-    },
-}
-
-FREQ_LABELS = {"M": "Monthly", "D": "Daily"}
+FACTOR_DATASET_LABEL = "Fama-French Factors"
 
 
 def render(engine) -> None:
     st.header("Compare & Correlate")
 
-    dataset_labels = list(COMPARE_DATASETS.keys())
+    dataset_labels = list(COMPARE_DATASETS.keys()) + [FACTOR_DATASET_LABEL]
     chosen_datasets = st.multiselect("Include datasets", dataset_labels, default=dataset_labels[:2])
     if not chosen_datasets:
         st.info("Select at least one dataset.")
         return
 
     factor_frequency = None
-    if "Fama-French Factors" in chosen_datasets:
-        freq_df = db.read_sql(
-            engine,
-            "SELECT DISTINCT frequency FROM factor_returns ORDER BY frequency",
-        )
-        if freq_df.empty:
+    if FACTOR_DATASET_LABEL in chosen_datasets:
+        freq_options = get_factor_frequencies(engine)
+        if not freq_options:
             st.info("No factor data available.")
             return
-        freq_options = freq_df["frequency"].tolist()
         if len(freq_options) == 1:
             factor_frequency = freq_options[0]
-            st.caption(f"Factor frequency: {FREQ_LABELS.get(factor_frequency, factor_frequency)}")
+            st.caption(f"Factor frequency: {FACTOR_FREQ_LABELS.get(factor_frequency, factor_frequency)}")
         else:
             factor_frequency = st.selectbox(
                 "Factor frequency",
                 freq_options,
-                format_func=lambda value: FREQ_LABELS.get(value, value),
+                format_func=lambda value: FACTOR_FREQ_LABELS.get(value, value),
             )
 
-    options = []
-    option_map = {}
+    options: list[str] = []
+    option_map: dict[str, dict] = {}
+
     for dataset_label in chosen_datasets:
-        dataset = COMPARE_DATASETS[dataset_label]
-        if dataset_label == "Fama-French Factors":
+        if dataset_label == FACTOR_DATASET_LABEL:
             if factor_frequency is None:
                 continue
-            factors_df = db.read_sql(
-                engine,
-                """
-                SELECT DISTINCT factor_set, factor
-                FROM factor_returns
-                WHERE frequency = :frequency
-                ORDER BY factor_set, factor
-                """,
-                params={"frequency": factor_frequency},
-            )
-            if factors_df.empty:
-                continue
-            for _, row in factors_df.iterrows():
-                option_key = f"{dataset_label}::{row['factor_set']}::{row['factor']}"
+            factor_options = get_factor_options(engine, factor_frequency)
+            for option in factor_options:
+                option_key = f"{dataset_label}::{option}"
                 options.append(option_key)
                 option_map[option_key] = {
-                    **dataset,
-                    "factor_set": row["factor_set"],
-                    "factor": row["factor"],
-                    "frequency": factor_frequency,
                     "dataset_label": dataset_label,
-                    "short_label": f"{row['factor_set']}::{row['factor']}",
+                    "frequency": factor_frequency,
+                    "factor_option": option,
+                    "short_label": option,
+                    "return_series": True,
                 }
             continue
 
-        ids_df = db.list_distinct(engine, dataset["table"], dataset["id_col"], dataset["label_col"])
+        dataset = COMPARE_DATASETS[dataset_label]
+        ids_df = list_series_ids(engine, dataset)
         if ids_df.empty:
             continue
-        if "label" in ids_df.columns:
-            label_map = {row["id"]: f"{row['id']} - {row['label']}" for _, row in ids_df.iterrows()}
-        else:
-            label_map = {row["id"]: row["id"] for _, row in ids_df.iterrows()}
+        label_map = build_label_map(ids_df)
         for series_id in ids_df["id"].tolist():
             option_key = f"{dataset_label}::{series_id}"
             options.append(option_key)
             option_map[option_key] = {
-                **dataset,
-                "id": series_id,
                 "dataset_label": dataset_label,
+                "dataset": dataset,
+                "id": series_id,
                 "short_label": label_map[series_id],
+                "return_series": False,
             }
 
     if not options:
         st.info("No series available for the selected datasets.")
         return
 
-    option_label_counts = {}
+    option_label_counts: dict[str, int] = {}
     for option in options:
         short_label = option_map[option]["short_label"]
         option_label_counts[short_label] = option_label_counts.get(short_label, 0) + 1
@@ -151,23 +101,13 @@ def render(engine) -> None:
 
     date_bounds = []
     for dataset_label in chosen_datasets:
-        dataset = COMPARE_DATASETS[dataset_label]
-        if dataset_label == "Fama-French Factors" and factor_frequency is not None:
-            bounds_df = db.read_sql(
-                engine,
-                """
-                SELECT MIN(date) AS min_date, MAX(date) AS max_date
-                FROM factor_returns
-                WHERE frequency = :frequency
-                """,
-                params={"frequency": factor_frequency},
-            )
-            min_date = bounds_df.loc[0, "min_date"]
-            max_date = bounds_df.loc[0, "max_date"]
+        if dataset_label == FACTOR_DATASET_LABEL and factor_frequency is not None:
+            min_date, max_date = get_factor_bounds(engine, factor_frequency)
         else:
-            min_date, max_date = db.get_date_bounds(engine, dataset["table"], dataset["date_col"])
+            min_date, max_date = get_dataset_bounds(engine, COMPARE_DATASETS[dataset_label])
         if min_date is not None and max_date is not None:
             date_bounds.append((min_date, max_date))
+
     if not date_bounds:
         st.info("No date data available for the selected datasets.")
         return
@@ -193,89 +133,64 @@ def render(engine) -> None:
     normalize = st.checkbox("Normalize to 100", value=True)
 
     selected_meta = [option_map[item] for item in selected]
-    label_is_return = {}
-    label_counts = {}
+    label_counts: dict[str, int] = {}
     for meta in selected_meta:
         label_counts[meta["short_label"]] = label_counts.get(meta["short_label"], 0) + 1
+
+    label_is_return: dict[str, bool] = {}
     for meta in selected_meta:
         label = meta["short_label"]
         if label_counts[label] > 1:
             label = f"{label} ({meta['dataset_label']})"
         meta["final_label"] = label
-        label_is_return[label] = meta.get("return_series", False)
-
-    selected_by_table = {}
-    for meta in selected_meta:
-        if meta["table"] == "factor_returns":
-            entry = selected_by_table.setdefault(
-                "factor_returns",
-                {"pairs": [], "label_map": {}, "frequency": meta["frequency"]},
-            )
-            key = f"{meta['factor_set']}::{meta['factor']}"
-            entry["pairs"].append((meta["factor_set"], meta["factor"]))
-            entry["label_map"][key] = meta["final_label"]
-        else:
-            entry = selected_by_table.setdefault(
-                meta["table"],
-                {"meta": meta, "ids": [], "label_map": {}},
-            )
-            entry["ids"].append(meta["id"])
-            entry["label_map"][meta["id"]] = meta["final_label"]
+        label_is_return[label] = meta["return_series"]
 
     frames = []
-    for table, entry in selected_by_table.items():
-        if table == "factor_returns":
-            params = {
-                "frequency": entry["frequency"],
-                "start_date": start_date,
-                "end_date": end_date,
-            }
-            clauses = []
-            for idx, (factor_set, factor) in enumerate(entry["pairs"]):
-                params[f"set_{idx}"] = factor_set
-                params[f"factor_{idx}"] = factor
-                clauses.append(f"(factor_set = :set_{idx} AND factor = :factor_{idx})")
-            where_clause = " OR ".join(clauses)
-            query = f"""
-                SELECT date, factor_set, factor, value
-                FROM factor_returns
-                WHERE frequency = :frequency
-                  AND date BETWEEN :start_date AND :end_date
-                  AND ({where_clause})
-                ORDER BY date
-            """
-            df = db.read_sql(engine, query, params=params)
-            if df.empty:
-                continue
-            df["date"] = pd.to_datetime(df["date"])
-            df["id"] = df["factor_set"] + "::" + df["factor"]
-            df["label"] = df["id"].map(entry["label_map"])
-            frames.append(df[["date", "label", "value"]])
-            continue
 
-        dataset = entry["meta"]
-        query = db.build_select_query(
-            table=dataset["table"],
-            columns={
-                dataset["date_col"]: "date",
-                dataset["id_col"]: "id",
-                dataset["value_col"]: "value",
-            },
-            where=[
-                db.where_any(dataset["id_col"], "ids"),
-                db.where_between(dataset["date_col"], "start_date", "end_date"),
-            ],
-            order_by=[db.order_by_clause(dataset["date_col"])],
-        )
-        df = db.read_sql(
+    factor_selected = [m for m in selected_meta if m["dataset_label"] == FACTOR_DATASET_LABEL]
+    if factor_selected and factor_frequency is not None:
+        selected_options = [m["factor_option"] for m in factor_selected]
+        factor_df = fetch_factor_data(
             engine,
-            query,
-            params={"ids": entry["ids"], "start_date": start_date, "end_date": end_date},
+            frequency=factor_frequency,
+            options=selected_options,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        if not factor_df.empty:
+            factor_df["date"] = pd.to_datetime(factor_df["date"])
+            factor_df["option"] = factor_df["factor_set"] + "::" + factor_df["factor"]
+            factor_label_map = {m["factor_option"]: m["final_label"] for m in factor_selected}
+            factor_df["label"] = factor_df["option"].map(factor_label_map)
+            frames.append(factor_df[["date", "label", "value"]])
+
+    dataset_groups: dict[str, dict] = {}
+    for meta in selected_meta:
+        if meta["dataset_label"] == FACTOR_DATASET_LABEL:
+            continue
+        group = dataset_groups.setdefault(
+            meta["dataset_label"],
+            {
+                "dataset": meta["dataset"],
+                "ids": [],
+                "label_map": {},
+            },
+        )
+        group["ids"].append(meta["id"])
+        group["label_map"][meta["id"]] = meta["final_label"]
+
+    for group in dataset_groups.values():
+        df = fetch_value_series(
+            engine,
+            dataset=group["dataset"],
+            ids=group["ids"],
+            start_date=start_date,
+            end_date=end_date,
         )
         if df.empty:
             continue
         df["date"] = pd.to_datetime(df["date"])
-        df["label"] = df["id"].map(entry["label_map"])
+        df["label"] = df["id"].map(group["label_map"])
         frames.append(df[["date", "label", "value"]])
 
     if not frames:
@@ -285,6 +200,7 @@ def render(engine) -> None:
     combined = pd.concat(frames, ignore_index=True)
     pivot = combined.pivot(index="date", columns="label", values="value").sort_index()
 
+    span_days = 0
     if not pivot.empty:
         span_days = (pivot.index.max() - pivot.index.min()).days
     if span_days > 365:

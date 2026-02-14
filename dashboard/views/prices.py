@@ -4,28 +4,22 @@ import pandas as pd
 import streamlit as st
 
 from dashboard import analytics
-from db_utils import database as db
-
-
-DATASETS = {
-    "Stock Prices": {"table": "stock_prices", "symbol_col": "symbol"},
-    "Commodity Prices": {"table": "commodity_prices", "symbol_col": "symbol"},
-}
+from dashboard.data_access import PRICE_DATASETS, fetch_ohlcv_series, get_dataset_bounds, list_series_ids
 
 
 def render(engine) -> None:
     st.header("Prices Explorer")
 
-    dataset_label = st.selectbox("Dataset", list(DATASETS.keys()))
-    dataset = DATASETS[dataset_label]
+    dataset_label = st.selectbox("Dataset", list(PRICE_DATASETS.keys()))
+    dataset = PRICE_DATASETS[dataset_label]
 
-    symbols_df = db.list_distinct(engine, dataset["table"], dataset["symbol_col"])
+    symbols_df = list_series_ids(engine, dataset)
     if symbols_df.empty:
         st.info("No symbols available for this dataset.")
         return
 
     symbol = st.selectbox("Symbol", symbols_df["id"].tolist())
-    min_date, max_date = db.get_date_bounds(engine, dataset["table"], "date")
+    min_date, max_date = get_dataset_bounds(engine, dataset)
     if min_date is None or max_date is None:
         st.info("No date data available for this dataset.")
         return
@@ -37,21 +31,7 @@ def render(engine) -> None:
     start_date, end_date = date_range
 
     freq = st.selectbox("Resample", ["D", "W", "M"], index=0)
-
-    query = db.build_select_query(
-        table=dataset["table"],
-        columns=["date", "open", "high", "low", "close", "volume"],
-        where=[
-            db.where_eq(dataset["symbol_col"], "symbol"),
-            db.where_between("date", "start_date", "end_date"),
-        ],
-        order_by=[db.order_by_clause("date")],
-    )
-    df = db.read_sql(
-        engine,
-        query,
-        params={"symbol": symbol, "start_date": start_date, "end_date": end_date},
-    )
+    df = fetch_ohlcv_series(engine, dataset, symbol, start_date, end_date)
     if df.empty:
         st.info("No data for the selected range.")
         return

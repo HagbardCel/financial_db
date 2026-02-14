@@ -5,54 +5,16 @@ import streamlit as st
 import matplotlib.pyplot as plt
 
 from db_utils import database as db
-
-
-FREQ_LABELS = {"M": "Monthly", "D": "Daily"}
+from dashboard.data_access import FACTOR_FREQ_LABELS, fetch_factor_data, get_factor_frequencies, get_factor_options
 
 
 def _get_frequency(engine) -> str | None:
-    freq_df = db.read_sql(engine, "SELECT DISTINCT frequency FROM factor_returns ORDER BY frequency")
-    if freq_df.empty:
+    options = get_factor_frequencies(engine)
+    if not options:
         return None
-    options = freq_df["frequency"].tolist()
     if len(options) == 1:
         return options[0]
-    return st.selectbox("Frequency", options, format_func=lambda f: FREQ_LABELS.get(f, f))
-
-
-def _build_factor_options(engine, frequency: str) -> list[str]:
-    options_df = db.read_sql(
-        engine,
-        """
-        SELECT DISTINCT factor_set, factor
-        FROM factor_returns
-        WHERE frequency = :frequency
-        ORDER BY factor_set, factor
-        """,
-        params={"frequency": frequency},
-    )
-    if options_df.empty:
-        return []
-    return [f"{row['factor_set']}::{row['factor']}" for _, row in options_df.iterrows()]
-
-
-def _fetch_factor_data(engine, frequency: str, selected: list[str]) -> pd.DataFrame:
-    params = {"frequency": frequency}
-    clauses = []
-    for idx, option in enumerate(selected):
-        factor_set, factor = option.split("::", 1)
-        params[f"set_{idx}"] = factor_set
-        params[f"factor_{idx}"] = factor
-        clauses.append(f"(factor_set = :set_{idx} AND factor = :factor_{idx})")
-    where_clause = " OR ".join(clauses)
-    query = f"""
-        SELECT date, factor_set, factor, value
-        FROM factor_returns
-        WHERE frequency = :frequency
-          AND ({where_clause})
-        ORDER BY date
-    """
-    return db.read_sql(engine, query, params=params)
+    return st.selectbox("Frequency", options, format_func=lambda f: FACTOR_FREQ_LABELS.get(f, f))
 
 
 def render(engine) -> None:
@@ -63,7 +25,7 @@ def render(engine) -> None:
         st.info("No factor data available.")
         return
 
-    options = _build_factor_options(engine, frequency)
+    options = get_factor_options(engine, frequency)
     if not options:
         st.info("No factor series available.")
         return
@@ -75,7 +37,7 @@ def render(engine) -> None:
 
     show_percent = st.checkbox("Show as %", value=True)
 
-    df = _fetch_factor_data(engine, frequency, selected)
+    df = fetch_factor_data(engine, frequency=frequency, options=selected)
     if df.empty:
         st.info("No data for the selected factors.")
         return
