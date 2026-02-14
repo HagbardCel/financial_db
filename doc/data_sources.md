@@ -141,7 +141,8 @@ General macroeconomic series keyed by an `id` and date.
 
 ### Sources currently ingested
 1. **Robert Shiller online data (Excel)**
-   - Ingested by: `python -m data_fetchers.shiller_cape <excel_url>`
+   - Ingested by: `python -m data_fetchers.shiller_cape --url <excel_url>`
+   - Legacy positional URL form also works: `python -m data_fetchers.shiller_cape <excel_url>`
    - Distinguish in-table:
      - `id`: identifiers are defined in `data_fetchers/shiller_cols.json` (e.g., `sp_comp_price`, `sp_comp_div`, `sp_comp_earn`, `cpi`, `rate_gs10`)
      - `long_name`: descriptive name stored alongside the values
@@ -156,7 +157,8 @@ Non-standard or derived series used during development/testing.
 
 ### Sources currently ingested
 1. **Derived fields from Shiller ingest**
-   - Ingested by: `python -m data_fetchers.shiller_cape <excel_url>`
+   - Ingested by: `python -m data_fetchers.shiller_cape --url <excel_url>`
+   - Legacy positional URL form also works: `python -m data_fetchers.shiller_cape <excel_url>`
    - Distinguish in-table:
      - `id` values with `type: "derived"` in `data_fetchers/shiller_cols.json` (e.g., `sp_cape`, `r_sp_price`, …)
 

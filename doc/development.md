@@ -60,7 +60,15 @@ Data fetchers are located in `data_fetchers/` and can be run individually from t
 
 **Shiller CAPE Data**:
 ```bash
+python -m data_fetchers.shiller_cape --url <url_to_excel_file>
+```
+Legacy positional URL is still supported:
+```bash
 python -m data_fetchers.shiller_cape <url_to_excel_file>
+```
+Optional resilience flags:
+```bash
+python -m data_fetchers.shiller_cape --url <url_to_excel_file> --timeout 30 --retries 3 --retry-backoff 1.0
 ```
 
 **Treasury Rates (OpenBB)**:
