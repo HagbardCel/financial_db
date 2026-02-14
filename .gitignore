@@ -108,3 +108,12 @@ analyses/analyses_outputs/
 derived/aqr/
 derived/ken_french/
 derived/ken_french_portfolios/
+
+# Risk-weighted allocation analysis artifacts
+analyses/risk_weighted_factor_allocation/__pycache__/
+analyses/risk_weighted_factor_allocation/*.xlsx
+analyses/risk_weighted_factor_allocation/outputs/*
+!analyses/risk_weighted_factor_allocation/outputs/summary.md
+!analyses/risk_weighted_factor_allocation/outputs/metrics_common_sample.csv
+!analyses/risk_weighted_factor_allocation/outputs/selected_hyperparameters.csv
+!analyses/risk_weighted_factor_allocation/outputs/transaction_cost_sensitivity.csv
