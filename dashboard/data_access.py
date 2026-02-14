@@ -4,9 +4,24 @@ from dataclasses import dataclass
 from typing import Any, Dict, Mapping, Optional, Sequence, Tuple
 
 import pandas as pd
+import streamlit as st
 from sqlalchemy.engine import Engine
 
 from db_utils import database as db
+
+
+METADATA_CACHE_TTL_SECONDS = 300
+
+
+def _engine_cache_key(engine: Engine) -> str:
+    return str(engine.url)
+
+
+_CACHE_KWARGS = {
+    "ttl": METADATA_CACHE_TTL_SECONDS,
+    "show_spinner": False,
+    "hash_funcs": {Engine: _engine_cache_key},
+}
 
 
 @dataclass(frozen=True)
@@ -75,14 +90,17 @@ COMPARE_DATASETS: Dict[str, SeriesDataset] = {
     "Indices": SERIES_DATASETS["Indices"],
     "Macro Data": SERIES_DATASETS["Macro Data"],
     "Commodity Prices (Close)": SERIES_DATASETS["Commodity Prices (Close)"],
-    "Shiller Derived": SeriesDataset(
-        table="shiller_derived_view",
-        id_col="id",
-        date_col="date",
-        value_col="value",
-        label_col="long_name",
-    ),
 }
+
+DERIVED_DATASET = SeriesDataset(
+    table="shiller_derived_view",
+    id_col="id",
+    date_col="date",
+    value_col="value",
+    label_col="long_name",
+)
+
+COMPARE_DATASETS["Shiller Derived"] = DERIVED_DATASET
 
 BROWSER_DATASETS: Dict[str, BrowserDataset] = {
     "Assets Prices": BrowserDataset(table="assets_prices", date_col="date", id_col="id"),
@@ -124,16 +142,24 @@ def build_label_map(df: pd.DataFrame) -> Dict[str, str]:
     return {row["id"]: row["id"] for _, row in df.iterrows()}
 
 
+@st.cache_data(**_CACHE_KWARGS)
 def list_series_ids(engine: Engine, dataset: SeriesDataset) -> pd.DataFrame:
     return db.list_distinct(engine, dataset.table, dataset.id_col, dataset.label_col)
 
 
+@st.cache_data(**_CACHE_KWARGS)
 def get_table_bounds(engine: Engine, table: str, date_col: str = "date"):
     return db.get_date_bounds(engine, table, date_col)
 
 
+@st.cache_data(**_CACHE_KWARGS)
 def get_dataset_bounds(engine: Engine, dataset: SeriesDataset):
     return db.get_date_bounds(engine, dataset.table, dataset.date_col)
+
+
+@st.cache_data(**_CACHE_KWARGS)
+def get_table_stats(engine: Engine, table: str, date_col: str = "date") -> Dict[str, Any]:
+    return db.get_table_stats(engine, table, date_col)
 
 
 def fetch_value_series(
@@ -186,6 +212,7 @@ def fetch_ohlcv_series(
     )
 
 
+@st.cache_data(**_CACHE_KWARGS)
 def list_distinct_values(
     engine: Engine,
     table: str,
@@ -202,6 +229,7 @@ def parse_factor_options(options: Sequence[str]) -> list[tuple[str, str]]:
     return pairs
 
 
+@st.cache_data(**_CACHE_KWARGS)
 def get_factor_frequencies(engine: Engine) -> list[str]:
     query = db.build_select_query(
         table=FACTOR_TABLE,
@@ -213,6 +241,7 @@ def get_factor_frequencies(engine: Engine) -> list[str]:
     return df["frequency"].tolist() if not df.empty else []
 
 
+@st.cache_data(**_CACHE_KWARGS)
 def get_factor_sets(engine: Engine, frequency: str) -> list[str]:
     query = db.build_select_query(
         table=FACTOR_TABLE,
@@ -225,6 +254,7 @@ def get_factor_sets(engine: Engine, frequency: str) -> list[str]:
     return df["factor_set"].tolist() if not df.empty else []
 
 
+@st.cache_data(**_CACHE_KWARGS)
 def get_factor_options(engine: Engine, frequency: str, factor_sets: Optional[Sequence[str]] = None) -> list[str]:
     where = [db.where_eq("frequency", "frequency")]
     params: Dict[str, Any] = {"frequency": frequency}
@@ -245,6 +275,7 @@ def get_factor_options(engine: Engine, frequency: str, factor_sets: Optional[Seq
     return [f"{row['factor_set']}::{row['factor']}" for _, row in df.iterrows()]
 
 
+@st.cache_data(**_CACHE_KWARGS)
 def get_factor_bounds(
     engine: Engine,
     frequency: str,
@@ -270,6 +301,42 @@ def get_factor_bounds(
     if pd.isna(min_date) or pd.isna(max_date):
         return None, None
     return min_date, max_date
+
+
+@st.cache_data(**_CACHE_KWARGS)
+def get_rate_dimensions(engine: Engine) -> tuple[list[str], list[str], list[str]]:
+    regions = list_distinct_values(engine, "interest_rates", "region")
+    rate_types = list_distinct_values(engine, "interest_rates", "rate_type")
+    currencies = list_distinct_values(engine, "interest_rates", "currency")
+    return regions, rate_types, currencies
+
+
+@st.cache_data(**_CACHE_KWARGS)
+def get_rate_maturities(
+    engine: Engine,
+    region: str,
+    rate_type: str,
+    currency: str,
+) -> list[str]:
+    query = db.build_select_query(
+        table="interest_rates",
+        columns={"maturity": "maturity"},
+        where=[
+            db.where_eq("region", "region"),
+            db.where_eq("rate_type", "rate_type"),
+            db.where_eq("currency", "currency"),
+        ],
+        order_by=[db.order_by_clause("maturity")],
+    )
+    query = query.replace("SELECT ", "SELECT DISTINCT ", 1)
+    df = db.read_sql(
+        engine,
+        query,
+        params={"region": region, "rate_type": rate_type, "currency": currency},
+    )
+    if df.empty:
+        return []
+    return df["maturity"].tolist()
 
 
 def fetch_factor_data(

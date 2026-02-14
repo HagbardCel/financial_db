@@ -4,6 +4,7 @@ import re
 import pandas as pd
 import streamlit as st
 
+from dashboard.data_access import get_rate_dimensions, get_rate_maturities, get_table_bounds
 from db_utils import database as db
 
 
@@ -25,9 +26,7 @@ def _sort_maturities(values: list[str]) -> list[str]:
 def render(engine) -> None:
     st.header("Rates")
 
-    regions = db.list_distinct(engine, "interest_rates", "region")["id"].tolist()
-    rate_types = db.list_distinct(engine, "interest_rates", "rate_type")["id"].tolist()
-    currencies = db.list_distinct(engine, "interest_rates", "currency")["id"].tolist()
+    regions, rate_types, currencies = get_rate_dimensions(engine)
 
     if not regions or not rate_types or not currencies:
         st.info("No rate data available.")
@@ -37,7 +36,7 @@ def render(engine) -> None:
     rate_type = st.selectbox("Rate Type", rate_types)
     currency = st.selectbox("Currency", currencies)
 
-    min_date, max_date = db.get_date_bounds(engine, "interest_rates", "date")
+    min_date, max_date = get_table_bounds(engine, "interest_rates", "date")
     if min_date is None or max_date is None:
         st.info("No date data available for interest rates.")
         return
@@ -70,18 +69,12 @@ def render(engine) -> None:
         st.line_chart(curve["interest_rate"], use_container_width=True)
 
     st.subheader("Historical Series")
-    maturities = db.read_sql(
+    maturities = get_rate_maturities(
         engine,
-        """
-        SELECT DISTINCT maturity
-        FROM interest_rates
-        WHERE region = :region
-          AND rate_type = :rate_type
-          AND currency = :currency
-        ORDER BY maturity
-        """,
-        params={"region": region, "rate_type": rate_type, "currency": currency},
-    )["maturity"].tolist()
+        region=region,
+        rate_type=rate_type,
+        currency=currency,
+    )
     if not maturities:
         st.info("No maturities available.")
         return

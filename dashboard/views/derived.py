@@ -3,18 +3,19 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
+from dashboard.data_access import DERIVED_DATASET, build_label_map, get_dataset_bounds, list_series_ids
 from db_utils import database as db
 
 
 def render(engine) -> None:
     st.header("Derived Metrics (Shiller CAPE)")
 
-    ids_df = db.list_distinct(engine, "shiller_derived_view", "id", "long_name")
+    ids_df = list_series_ids(engine, DERIVED_DATASET)
     if ids_df.empty:
         st.info("No derived series available.")
         return
 
-    label_map = {row["id"]: f"{row['id']} - {row['label']}" for _, row in ids_df.iterrows()}
+    label_map = build_label_map(ids_df)
     options = [label_map[row_id] for row_id in ids_df["id"].tolist()]
     selected_labels = st.multiselect("Series", options, default=options[:2])
     if not selected_labels:
@@ -22,7 +23,7 @@ def render(engine) -> None:
         return
     selected_ids = [key for key, label in label_map.items() if label in selected_labels]
 
-    min_date, max_date = db.get_date_bounds(engine, "shiller_derived_view", "date")
+    min_date, max_date = get_dataset_bounds(engine, DERIVED_DATASET)
     if min_date is None or max_date is None:
         st.info("No date data available for this view.")
         return

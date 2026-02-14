@@ -27,6 +27,10 @@ def main() -> None:
         st.error(f"Database connection failed: {exc}")
         st.stop()
 
+    if st.sidebar.button("Refresh Metadata Cache"):
+        st.cache_data.clear()
+        st.sidebar.success("Metadata cache cleared.")
+
     pages = {
         "Overview": overview.render,
         "Prices Explorer": prices.render,

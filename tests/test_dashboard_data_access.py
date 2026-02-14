@@ -1,7 +1,8 @@
 import pandas as pd
 import pytest
+from sqlalchemy import create_engine
 
-from dashboard.data_access import build_label_map, parse_factor_options
+from dashboard.data_access import _engine_cache_key, build_label_map, parse_factor_options
 
 
 def test_build_label_map_without_label_column():
@@ -22,3 +23,8 @@ def test_parse_factor_options():
 def test_parse_factor_options_rejects_invalid_format():
     with pytest.raises(ValueError):
         parse_factor_options(["invalid"])
+
+
+def test_engine_cache_key_uses_url():
+    engine = create_engine("sqlite://")
+    assert _engine_cache_key(engine).startswith("sqlite")
