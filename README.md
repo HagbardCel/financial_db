@@ -21,8 +21,9 @@ Gold prices are sourced from the datasets/gold-prices monthly CSV:
 ## Quick Start
 1.  Clone the repository.
 2.  Open in VS Code and reopen in Devcontainer.
-    The devcontainer installs dependencies into the project venv at `/workspaces/financial_db/.venv`.
+    The devcontainer installs core runtime dependencies into the project venv at `/workspaces/financial_db/.venv`.
     Verify with: `python -c "import pandas, openbb; print('ok')"`
+    Optional sets can be added as needed: `uv sync --group dashboard --group analysis --group dev`
 3.  Initialize the database: `python db_utils/db_setup.py`
 4.  Run a fetcher from the repo root: `python -m data_fetchers.bonds`
 

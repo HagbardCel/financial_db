@@ -4,24 +4,29 @@ version = "0.1.0"
 description = "Personal financial data management system with PostgreSQL"
 requires-python = ">=3.9"
 dependencies = [
-    "jupyterlab",
     "pandas",
-    "matplotlib",
     "numpy",
     "psycopg2-binary",
     "requests",
-    "scikit-learn",
-    "seaborn",
-    "streamlit",
     "xlrd",
     "openbb==4.6.0; python_version >= '3.10'",
     "openbb==4.1.3; python_version < '3.10'",
     "sqlalchemy",
-    "pytest>=8.4.2",
 ]
 
-[project.dependency-groups.dev]
-dependencies = [
+[dependency-groups]
+dashboard = [
+    "streamlit",
+    "matplotlib",
+    "seaborn",
+]
+analysis = [
+    "jupyterlab",
+    "scikit-learn",
+    "matplotlib",
+    "seaborn",
+]
+dev = [
     "pytest>=8.4.2",
     "pytest-postgresql",
     "psycopg[binary]",

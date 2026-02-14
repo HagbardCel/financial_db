@@ -16,7 +16,7 @@ This project is configured to run inside a **Devcontainer**. This ensures a cons
 
 The devcontainer will automatically:
 -   Install Python 3.10+
--   Install project dependencies using `uv`
+-   Install core runtime dependencies using `uv`
 -   Spin up a generic PostgreSQL database container
 
 ## Package Management
@@ -26,6 +26,10 @@ We use `uv` for fast and reliable dependency management.
 -   **Sync Dependencies**:
     ```bash
     uv sync
+    ```
+-   **Sync Optional Dependency Sets**:
+    ```bash
+    uv sync --group dashboard --group analysis --group dev
     ```
 -   **Add a Package**:
     ```bash
