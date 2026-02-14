@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 
 # This determines the absolute path to the directory containing this file (db_utils/)
@@ -9,7 +8,12 @@ PROJECT_ROOT = _DB_UTILS_DIR.parent
 
 # Define other useful paths
 DATA_DIR = PROJECT_ROOT / "data"
-DOC_DIR = PROJECT_ROOT / "doc"
+# Canonical documentation root for architecture/database/development docs.
+DOCS_ROOT = PROJECT_ROOT / "doc"
+# Backward-compatible alias used by older imports.
+DOC_DIR = DOCS_ROOT
+# Supplemental docs (assessments, planning artifacts) live here.
+SUPPLEMENTAL_DOCS_DIR = PROJECT_ROOT / "docs"
 LOG_DIR = PROJECT_ROOT / "logs"
 SCRIPTS_DIR = PROJECT_ROOT / "scripts"
 NOTEBOOKS_DIR = PROJECT_ROOT / "notebooks"

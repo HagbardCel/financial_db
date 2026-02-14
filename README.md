@@ -7,10 +7,12 @@ Gold prices are sourced from the datasets/gold-prices monthly CSV:
 `https://github.com/datasets/gold-prices/blob/main/data/monthly.csv?utm_source=chatgpt.com`
 
 ## Documentation
+Canonical docs root: `doc/`
 -   **[Architecture Overview](doc/architecture.md)**: High-level system design and components.
 -   **[Database Schema](doc/database.md)**: Detailed breakdown of tables and views.
 -   **[Data Sources Catalog](doc/data_sources.md)**: What populates each table + upstream source links.
 -   **[Development Guide](doc/development.md)**: Setup instructions and workflows.
+Supplemental planning/assessment artifacts: `docs/`.
 
 ## Features
 -   **Containerized Environment**: Fully isolated setup using Docker.
