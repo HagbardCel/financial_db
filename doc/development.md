@@ -112,6 +112,24 @@ Fetch only portfolios:
 python -m data_fetchers.ken_french portfolios
 ```
 
+## Ingest Smoke Check
+
+Run a lightweight, repeatable ingest check that records per-command runtime and success/failure counts in JSON:
+
+```bash
+python scripts/ingest_smoke_check.py \
+  --command "python -m data_fetchers.stock_prices AAPL MSFT --start 2024-01-01 --end 2024-03-31" \
+  --command "python -m data_fetchers.commodities GC=F SI=F --start 2024-01-01 --end 2024-03-31" \
+  --runs 2 \
+  --label "baseline" \
+  --output derived/reports/ingest_smoke_baseline.json
+```
+
+The summary includes:
+- command durations (`min` / `max` / `avg`)
+- success/failure counts
+- DB environment variable presence check (`POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`)
+
 ### OpenBB Provider Configuration
 OpenBB pulls data via providers; set provider keys via env vars as needed. Optional overrides:
 - `OPENBB_EQUITY_PROVIDER`
