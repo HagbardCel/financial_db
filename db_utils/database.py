@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
 
-import psycopg2
 from psycopg2 import pool
 import pandas as pd
-import numpy as np
 import re
 from typing import Dict, Any, Iterable, List, Tuple, Optional, Mapping, Sequence
 from sqlalchemy import bindparam, create_engine, text
 from sqlalchemy.engine import Engine, URL
-from .schemas import get_schema
 from .config import get_database_config
 
 # Global variable to store the connection pool
@@ -27,6 +24,15 @@ def init_connection_pool(config: Dict[str, str], minconn: int = 1, maxconn: int 
         
         _CONNECTION_POOL = pool.ThreadedConnectionPool(minconn, maxconn, **config)
     return _CONNECTION_POOL
+
+
+def close_connection_pool() -> None:
+    """Close and reset the shared connection pool."""
+    global _CONNECTION_POOL
+    if _CONNECTION_POOL is None:
+        return
+    _CONNECTION_POOL.closeall()
+    _CONNECTION_POOL = None
 
 
 def validate_identifier(name: str, kind: str = "identifier") -> str:
