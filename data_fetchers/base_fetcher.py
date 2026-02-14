@@ -39,22 +39,31 @@ class BaseFetcher(ABC):
         """
         with DatabaseConnection(config=self.db_config) as db:
             repo = DataRepository(db)
-            
-            if isinstance(data, dict):
-                for t_name, df in data.items():
-                    if not df.empty:
-                        self.logger.info(f"Saving {len(df)} rows to table: {t_name}")
-                        repo.save_dataframe(df, t_name)
-                    else:
-                        self.logger.warning(f"DataFrame for table {t_name} is empty. Skipping.")
-            else:
-                if table_name is None:
-                    raise ValueError("table_name must be provided for single DataFrame saves.")
-                if not data.empty:
-                    self.logger.info(f"Saving {len(data)} rows to table: {table_name}")
-                    repo.save_dataframe(data, table_name)
+            self._save_with_repository(repo, data, table_name)
+
+    def _save_with_repository(
+        self,
+        repo: DataRepository,
+        data: Union[pd.DataFrame, Dict[str, pd.DataFrame]],
+        table_name: Optional[str] = None,
+    ) -> None:
+        """Persist transformed data using an already-initialized repository."""
+        if isinstance(data, dict):
+            for t_name, df in data.items():
+                if not df.empty:
+                    self.logger.info(f"Saving {len(df)} rows to table: {t_name}")
+                    repo.save_dataframe(df, t_name)
                 else:
-                    self.logger.warning(f"DataFrame for table {table_name} is empty. Skipping.")
+                    self.logger.warning(f"DataFrame for table {t_name} is empty. Skipping.")
+            return
+
+        if table_name is None:
+            raise ValueError("table_name must be provided for single DataFrame saves.")
+        if not data.empty:
+            self.logger.info(f"Saving {len(data)} rows to table: {table_name}")
+            repo.save_dataframe(data, table_name)
+        else:
+            self.logger.warning(f"DataFrame for table {table_name} is empty. Skipping.")
 
     def run(self, table_name: Optional[str] = None):
         """
@@ -70,6 +79,26 @@ class BaseFetcher(ABC):
             self.logger.info("Starting save stage...")
             self.save(clean_data, table_name)
             
+            self.logger.info("Pipeline execution finished successfully.")
+        except Exception as e:
+            self.logger.error(f"Pipeline execution failed: {str(e)}", exc_info=True)
+            raise
+
+    def run_with_repository(self, repo: DataRepository, table_name: Optional[str] = None):
+        """
+        Execute fetch-transform-save using a shared repository/connection.
+        Useful for batch ingest commands that process many symbols in one DB session.
+        """
+        try:
+            self.logger.info("Starting fetch stage...")
+            raw_data = self.fetch()
+
+            self.logger.info("Starting transform stage...")
+            clean_data = self.transform(raw_data)
+
+            self.logger.info("Starting save stage...")
+            self._save_with_repository(repo, clean_data, table_name)
+
             self.logger.info("Pipeline execution finished successfully.")
         except Exception as e:
             self.logger.error(f"Pipeline execution failed: {str(e)}", exc_info=True)

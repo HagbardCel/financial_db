@@ -7,6 +7,8 @@ import pandas as pd
 from data_fetchers.base_fetcher import BaseFetcher
 from data_fetchers import openbb_client
 from db_utils.config import get_database_config
+from db_utils.database import DatabaseConnection
+from db_utils.repository import DataRepository
 
 
 DEFAULT_SYMBOLS: List[str] = ["GC=F", "SI=F", "HG=F"]
@@ -58,19 +60,23 @@ def main() -> None:
     symbols = args.symbols or DEFAULT_SYMBOLS
     db_config = get_database_config()
 
-    for symbol in symbols:
-        try:
-            fetcher = OpenBBCommodityPriceFetcher(
-                symbol,
-                start_date=args.start_date,
-                end_date=args.end_date,
-                provider=args.provider,
-                db_config=db_config,
-            )
-            fetcher.run(table_name="commodity_prices")
-            print(f"Successfully processed {symbol}")
-        except Exception as exc:
-            print(f"Failed to process {symbol}: {exc}")
+    with DatabaseConnection(config=db_config) as db:
+        repo = DataRepository(db)
+        for symbol in symbols:
+            try:
+                fetcher = OpenBBCommodityPriceFetcher(
+                    symbol,
+                    start_date=args.start_date,
+                    end_date=args.end_date,
+                    provider=args.provider,
+                    db_config=db_config,
+                )
+                fetcher.run_with_repository(repo, table_name="commodity_prices")
+                db.conn.commit()
+                print(f"Successfully processed {symbol}")
+            except Exception as exc:
+                db.conn.rollback()
+                print(f"Failed to process {symbol}: {exc}")
 
 
 if __name__ == "__main__":
