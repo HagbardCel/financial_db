@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import argparse
+import logging
 from typing import Dict, Iterable, List, Optional
 
 from data_fetchers.stock_prices import OpenBBEquityPriceFetcher
 from db_utils.config import get_database_config
 from db_utils.database import DatabaseConnection
 from db_utils.repository import DataRepository
+
+logger = logging.getLogger(__name__)
 
 ETF_NAMES: Dict[str, str] = {
     "IWFM.L": "iShares Edge MSCI World Momentum Factor UCITS ETF",
@@ -64,12 +67,16 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def main() -> None:
+def main() -> int:
+    if not logger.handlers:
+        logging.basicConfig(level=logging.INFO)
+
     args = parse_args()
     db_config = get_database_config()
     tickers = _resolve_tickers(args.etf_set, args.tickers)
     prefer_adjusted = not args.use_raw_close
     start_date = args.start_date or "1900-01-01"
+    failed_symbols: list[str] = []
 
     with DatabaseConnection(config=db_config) as db:
         repo = DataRepository(db)
@@ -85,11 +92,23 @@ def main() -> None:
                 )
                 fetcher.run_with_repository(repo, table_name="stock_prices")
                 db.conn.commit()
-                print(f"Successfully processed {symbol}")
-            except Exception as exc:
+                logger.info("Successfully processed %s", symbol)
+            except Exception:
                 db.conn.rollback()
-                print(f"Failed to process {symbol}: {exc}")
+                failed_symbols.append(symbol)
+                logger.exception("Failed to process %s", symbol)
+
+    succeeded = len(tickers) - len(failed_symbols)
+    logger.info(
+        "Factor ETF ingest finished: %s succeeded, %s failed.",
+        succeeded,
+        len(failed_symbols),
+    )
+    if failed_symbols:
+        logger.error("Failed symbols: %s", ", ".join(failed_symbols))
+        return 1
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
