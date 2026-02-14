@@ -3,7 +3,7 @@ import numpy as np
 from typing import Dict, Optional, Any
 from psycopg2 import extras
 from .schemas import get_schema
-from .database import DatabaseConnection
+from .database import DatabaseConnection, validate_identifier
 
 class DataRepository:
     """
@@ -27,6 +27,7 @@ class DataRepository:
             value_mapping: Optional mapping from DataFrame column names to table column names.
             batch_size: Number of rows per batch insert.
         """
+        table_name = validate_identifier(table_name, "table")
         schema = get_schema(table_name)
         columns = schema['columns']
         primary_keys = schema['primary_keys']
