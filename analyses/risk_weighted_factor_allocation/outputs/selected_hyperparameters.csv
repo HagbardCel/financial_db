@@ -1,0 +1,6 @@
+strategy_family,selection_method,lookback_months,target_vol_monthly,notes
+rw,baseline,6,0.02,Fixed paper baseline
+rw,walkforward_oos_best,12,0.0475,Best mean OOS CAGR
+rw,fullsample_best_no_cv,12,0.045,Best full-sample CAGR
+factor_momentum,walkforward_oos_best,12,,"Winner-takes-all signal, best mean OOS CAGR"
+factor_momentum,fullsample_best_no_cv,12,,"Winner-takes-all signal, best full-sample CAGR"
