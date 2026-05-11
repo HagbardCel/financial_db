@@ -46,6 +46,8 @@ Database access requires these environment variables:
 `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` (optional: `POSTGRES_HOST`, `POSTGRES_PORT`).
 We keep these in `.devcontainer/.env` (or a local `.env`) and do not commit personal editor settings.
 
+Provider secrets follow the same pattern. For normal devcontainer usage, add them to `.devcontainer/.env` so they are available to fetchers started inside the workspace.
+
 ### Initialization
 To set up the database schema (create tables):
 ```bash
@@ -61,6 +63,40 @@ python db_utils/db_setup.py --reset --yes
 ## Running Data Fetchers
 
 Data fetchers are located in `data_fetchers/` and can be run individually from the repo root:
+
+### Refresh Everything Configured for This Repo
+
+The canonical operator command is:
+
+```bash
+python -m data_fetchers.refresh_all
+```
+
+It reads `config/data_refresh.toml`, runs enabled fetchers in config order, and prints a summary of successes, failures, and skipped entries.
+To capture a complete run log, redirect both streams:
+
+```bash
+python -m data_fetchers.refresh_all >out_test 2>&1
+```
+
+Useful commands:
+
+```bash
+python -m data_fetchers.refresh_all --list
+python -m data_fetchers.refresh_all --only ken_french aqr
+python -m data_fetchers.refresh_all --skip factor_etfs
+python -m data_fetchers.refresh_all --fail-fast
+python -m data_fetchers.refresh_all --config path/to/custom_refresh.toml
+```
+
+Config notes:
+- `order` controls execution order.
+- Each `[fetchers.<name>]` section defines `module`, `enabled`, `description`, and `args`.
+- `args` is forwarded unchanged to the target fetcher CLI.
+- Sources that need operator-provided parameters stay disabled by default, except `shiller_cape` when `config/data_refresh.toml` contains a current Excel URL:
+  - `stock_prices` needs explicit ticker symbols.
+  - `shiller_cape` needs a current upstream Excel URL and is currently enabled in the default config.
+  - `open_asset_pricing_portfolio_characteristics` needs `--portfolio-scores-url`.
 
 **Shiller CAPE Data**:
 ```bash
@@ -78,6 +114,10 @@ python -m data_fetchers.shiller_cape --url <url_to_excel_file> --timeout 30 --re
 **Treasury Rates (OpenBB)**:
 ```bash
 python -m data_fetchers.bonds
+```
+Explicit provider:
+```bash
+python -m data_fetchers.bonds --provider fred
 ```
 
 **Equity Prices (OpenBB)**:
@@ -99,6 +139,20 @@ python -m data_fetchers.commodities
 python -m data_fetchers.gold_prices
 ```
 
+**Oil benchmark prices**:
+```bash
+python -m data_fetchers.oil_prices
+```
+This ingests:
+- `USOIL`: long-run U.S. crude benchmark from official EIA history
+- `WTI`: monthly WTI benchmark spot series
+- `BRENT`: monthly Brent benchmark spot series
+Targeted reruns:
+```bash
+python -m data_fetchers.oil_prices --provider fred --series USOIL
+python -m data_fetchers.oil_prices --provider fred --series WTI BRENT
+```
+
 **Ken French datasets (Factors + Portfolios)**:
 ```bash
 python -m data_fetchers.ken_french
@@ -110,6 +164,16 @@ python -m data_fetchers.ken_french factors
 Fetch only portfolios:
 ```bash
 python -m data_fetchers.ken_french portfolios
+```
+
+**AQR datasets (Factors + Portfolios)**:
+```bash
+python -m data_fetchers.aqr
+```
+
+**Open Asset Pricing factors + metadata**:
+```bash
+python -m data_fetchers.open_asset_pricing
 ```
 
 ## Ingest Smoke Check
@@ -139,7 +203,16 @@ OpenBB pulls data via providers; set provider keys via env vars as needed. Optio
 - `OPENBB_COMMODITY_HISTORICAL_PATH` (default: `derivatives.futures.historical`)
 - `OPENBB_FRED_SERIES_PATH` (default: `economy.fred_series`)
 
-For FRED-backed rates, set `FRED_API_KEY` (or `OPENBB_FRED_API_KEY`).
+For FRED-backed rates and oil spot benchmarks, use `FRED_API_KEY` as the canonical secret name and put it in `.devcontainer/.env`:
+
+```dotenv
+FRED_API_KEY=your_fred_api_key_here
+```
+
+Notes:
+- `FRED_API_KEY` is the preferred repo-wide name.
+- `OPENBB_FRED_API_KEY` is still accepted for backward compatibility.
+- A temporary shell override also works, for example `export FRED_API_KEY=...`, but `.devcontainer/.env` is the normal persistent setup for this repo.
 
 OpenBB dependency footprint: this repo installs the full OpenBB meta-package for now. If dependency weight becomes an issue, revisit slimming providers by switching to `openbb-core` plus the specific provider packages we use.
 

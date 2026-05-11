@@ -2,7 +2,7 @@
 import argparse
 import os
 from datetime import date, datetime, timedelta
-from typing import Dict, Optional
+from typing import Dict, Optional, Sequence
 
 import pandas as pd
 
@@ -24,6 +24,11 @@ DEFAULT_SERIES: Dict[str, str] = {
     "20Y": "DGS20",
     "30Y": "DGS30",
 }
+DEFAULT_PROVIDER = "fred"
+FRED_SETUP_HINT = (
+    "Set FRED_API_KEY in .devcontainer/.env (preferred) or export it in the shell "
+    "before running the fetcher."
+)
 
 
 class TreasuryFetcher(BaseFetcher):
@@ -44,14 +49,16 @@ class TreasuryFetcher(BaseFetcher):
         self.start_date = start_date
         self.end_date = end_date
         self.series_ids = series_ids or DEFAULT_SERIES
-        self.provider = provider or os.getenv("OPENBB_RATES_PROVIDER")
+        self.provider = provider or os.getenv("OPENBB_RATES_PROVIDER") or DEFAULT_PROVIDER
         self.region = region
         self.rate_type = rate_type
         self.currency = currency
+        self.fetch_errors: Dict[str, str] = {}
 
     def fetch(self) -> Dict[str, pd.DataFrame]:
         data: Dict[str, pd.DataFrame] = {}
         path = openbb_client.get_fred_series_path()
+        self.fetch_errors = {}
         for maturity, series_id in self.series_ids.items():
             try:
                 df = openbb_client.fetch_dataframe(
@@ -66,6 +73,7 @@ class TreasuryFetcher(BaseFetcher):
                     continue
                 data[maturity] = df
             except Exception as exc:
+                self.fetch_errors[f"{maturity}:{series_id}"] = str(exc)
                 self.logger.error(
                     "Error fetching %s treasury rate (%s): %s",
                     maturity,
@@ -89,7 +97,14 @@ class TreasuryFetcher(BaseFetcher):
                 )
             )
         if not frames:
-            raise ValueError("No treasury rate series fetched successfully.")
+            detail = "; ".join(
+                f"{series}: {message}" for series, message in self.fetch_errors.items()
+            ) or "No per-series errors were captured."
+            raise ValueError(
+                "No treasury rate series fetched successfully via OpenBB/FRED. "
+                f"Attempted series: {', '.join(self.series_ids.values())}. "
+                f"Errors: {detail}. {FRED_SETUP_HINT}"
+            )
         return pd.concat(frames, ignore_index=True)
 
 
@@ -99,16 +114,16 @@ def _parse_date(value: Optional[str], default: date) -> date:
     return datetime.fromisoformat(value).date()
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Fetch Treasury rates via OpenBB.")
     parser.add_argument("--start", dest="start_date", help="Start date (YYYY-MM-DD)")
     parser.add_argument("--end", dest="end_date", help="End date (YYYY-MM-DD)")
-    parser.add_argument("--provider", help="OpenBB provider override")
-    return parser.parse_args()
+    parser.add_argument("--provider", default=DEFAULT_PROVIDER, help="OpenBB provider override")
+    return parser.parse_args(argv)
 
 
-def main() -> None:
-    args = parse_args()
+def main(argv: Sequence[str] | None = None) -> None:
+    args = parse_args(argv)
     end_date = _parse_date(args.end_date, datetime.now().date())
     start_date = _parse_date(args.start_date, end_date - timedelta(days=365))
 

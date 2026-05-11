@@ -2,6 +2,8 @@
 
 This document details the database structure, including tables, views, and connection management for the `financial_db` project.
 
+For a source-oriented view of what populates each table, see `doc/data_sources.md`. That catalog also notes which sources run by default via `python -m data_fetchers.refresh_all` and where source provenance is not persisted in-table.
+
 ## Tables
 
 The database consists of the following primary tables, defined in `db_utils/db_setup.sql` and mapped in `db_utils/database.py`.
@@ -22,6 +24,7 @@ Stores historical interest rate data across different regions and maturities.
 -   `interest_rate` (NUMERIC): The interest rate value in percent.
 -   `currency` (TEXT): Currency code (e.g., 'USD').
 -   **Primary Key**: `(date, region, maturity, currency)`
+-   **Source provenance note**: the chosen OpenBB/FRED provider path is not stored in-table.
 
 ### `indices`
 Stores historical values for market indices.
@@ -41,6 +44,7 @@ Stores historical price data for equities and other ticker-based assets.
 -   `close` (NUMERIC): Close price (stored as **adjusted close when available**, otherwise raw close).
 -   `volume` (BIGINT): Trade volume.
 -   **Primary Key**: `(symbol, date)`
+-   **Source provenance note**: the upstream OpenBB provider used at ingest time is not stored in this table.
 
 ### `commodity_prices`
 Stores historical price data for commodities.
@@ -52,6 +56,8 @@ Stores historical price data for commodities.
 -   `close` (NUMERIC): Close price.
 -   `volume` (BIGINT): Trade volume.
 -   **Primary Key**: `(symbol, date)`
+-   **Source provenance note**: rows may come from OpenBB-backed commodity fetches or the committed gold CSV ingest; the source is inferred from the ingest path and `symbol`, not a dedicated source column.
+-   **Oil benchmark note**: long-run oil benchmark series such as `USOIL`, `WTI`, and `BRENT` are also stored here as close-only benchmark levels.
 
 ### `macro_data`
 Stores general macroeconomic indicators.

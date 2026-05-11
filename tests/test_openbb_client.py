@@ -62,3 +62,25 @@ def test_normalize_ohlcv_prefers_adjusted_close():
 
     out = openbb_client.normalize_ohlcv(df, symbol="TEST", prefer_adjusted=True)
     assert out.loc[0, "close"] == 105.0
+
+
+def test_normalize_ohlcv_resets_named_datetime_index():
+    df = pd.DataFrame(
+        {
+            "price": [71.0, 72.0],
+            "volume": [10, 11],
+        },
+        index=pd.DatetimeIndex(["2024-01-05", "2024-01-30"], name="date"),
+    )
+
+    out = openbb_client.normalize_ohlcv(df, symbol="WTI")
+
+    assert out.index.name is None
+    assert out["date"].astype(str).tolist() == ["2024-01-05", "2024-01-30"]
+    assert out["close"].tolist() == [71.0, 72.0]
+
+
+def test_get_commodity_spot_path_default(monkeypatch):
+    monkeypatch.delenv("OPENBB_COMMODITY_SPOT_PATH", raising=False)
+
+    assert openbb_client.get_commodity_spot_path() == "commodity.price.spot"

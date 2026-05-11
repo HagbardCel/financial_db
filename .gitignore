@@ -108,6 +108,8 @@ analyses/analyses_outputs/
 derived/aqr/
 derived/ken_french/
 derived/ken_french_portfolios/
+derived/oil_prices/
+out_test
 
 # Risk-weighted allocation analysis artifacts
 analyses/risk_weighted_factor_allocation/__pycache__/

@@ -14,6 +14,10 @@ dependencies = [
     "sqlalchemy",
 ]
 
+[tool.uv]
+package = true
+default-groups = ["dev", "analysis"]
+
 [dependency-groups]
 dashboard = [
     "streamlit",
@@ -31,6 +35,13 @@ dev = [
     "pytest-postgresql",
     "psycopg[binary]",
 ]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["db_utils*", "data_fetchers*", "dashboard*", "analyses*"]
 
 [tool.pytest.ini_options]
 markers = [

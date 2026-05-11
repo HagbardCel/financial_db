@@ -5,6 +5,7 @@
 	"dockerComposeFile": "docker-compose.yml",
 	"service": "devcontainer",
 	"workspaceFolder": "/workspaces/financial_db",
+	"runServices": ["db"],
 
 	// Use this environment variable if you need to bind mount your local source code into a new container.
 	"remoteEnv": {

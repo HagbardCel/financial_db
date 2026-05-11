@@ -1,0 +1,96 @@
+# Central refresh workflow for repo-managed data ingestion.
+# The orchestrator forwards each `args` array directly to the target module:
+#   python -m <module> ...args
+#
+# Use this file for fetchers that need source-specific parameters or operator
+# choices. Keep required/manual sources disabled until their parameters are set.
+
+order = [
+  "bonds",
+  "commodities",
+  "gold_prices",
+  "oil_prices",
+  "factor_etfs",
+  "ken_french",
+  "aqr",
+  "open_asset_pricing",
+  "stock_prices",
+  "shiller_cape",
+  "open_asset_pricing_portfolio_characteristics",
+]
+
+[fetchers.bonds]
+module = "data_fetchers.bonds"
+enabled = true
+description = "US Treasury rates via OpenBB/FRED."
+args = ["--provider", "fred"]
+
+[fetchers.commodities]
+module = "data_fetchers.commodities"
+enabled = true
+description = "Default commodity futures set via OpenBB."
+args = []
+
+[fetchers.gold_prices]
+module = "data_fetchers.gold_prices"
+enabled = true
+description = "Monthly gold history from datasets/gold-prices."
+args = []
+
+[fetchers.oil_prices]
+module = "data_fetchers.oil_prices"
+enabled = true
+description = "Long-run U.S. crude benchmark plus WTI and Brent spot benchmarks."
+args = ["--provider", "fred"]
+
+[fetchers.factor_etfs]
+module = "data_fetchers.factor_etfs"
+enabled = true
+description = "Default MSCI World factor ETF proxy set."
+args = []
+
+[fetchers.ken_french]
+module = "data_fetchers.ken_french"
+enabled = true
+description = "Ken French factors and portfolios."
+args = []
+
+[fetchers.aqr]
+module = "data_fetchers.aqr"
+enabled = true
+description = "AQR factors and portfolio datasets."
+args = []
+
+[fetchers.open_asset_pricing]
+module = "data_fetchers.open_asset_pricing"
+enabled = true
+description = "Open Asset Pricing factors plus metadata."
+args = []
+
+[fetchers.stock_prices]
+module = "data_fetchers.stock_prices"
+enabled = false
+description = "Disabled by default because this fetcher needs explicit tickers."
+args = [
+  "AAPL",
+  "MSFT",
+]
+
+[fetchers.shiller_cape]
+module = "data_fetchers.shiller_cape"
+enabled = true
+description = "Shiller macro and derived CAPE series from the configured Excel URL."
+args = [
+  "--url",
+  "https://img1.wsimg.com/blobby/go/e5e77e0b-59d1-44d9-ab25-4763ac982e53/downloads/3228b83a-7bad-4e69-b405-71e3a1ca6351/ie_data.xls?ver=1772737019751",
+]
+
+[fetchers.open_asset_pricing_portfolio_characteristics]
+module = "data_fetchers.open_asset_pricing"
+enabled = false
+description = "Disabled by default because it requires an explicit portfolio scores URL."
+args = [
+  "portfolio_characteristics",
+  "--portfolio-scores-url",
+  "https://example.com/portfolio_characteristics.csv",
+]

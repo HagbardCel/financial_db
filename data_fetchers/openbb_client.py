@@ -18,6 +18,10 @@ def get_commodity_history_path() -> str:
     return os.getenv("OPENBB_COMMODITY_HISTORICAL_PATH", "derivatives.futures.historical")
 
 
+def get_commodity_spot_path() -> str:
+    return os.getenv("OPENBB_COMMODITY_SPOT_PATH", "commodity.price.spot")
+
+
 def get_fred_series_path() -> str:
     return os.getenv("OPENBB_FRED_SERIES_PATH", "economy.fred_series")
 
@@ -192,21 +196,26 @@ def normalize_ohlcv(
     high_col = _resolve_column(df, ("high",)) or close_col
     low_col = _resolve_column(df, ("low",)) or close_col
     volume_col = _resolve_column(df, ("volume", "vol"))
+    normalized_index = pd.RangeIndex(len(df))
 
     normalized = pd.DataFrame(
         {
             "symbol": symbol,
-            "date": pd.to_datetime(date_series).dt.date,
-            "open": pd.to_numeric(df[open_col], errors="coerce"),
-            "high": pd.to_numeric(df[high_col], errors="coerce"),
-            "low": pd.to_numeric(df[low_col], errors="coerce"),
-            "close": pd.to_numeric(df[close_col], errors="coerce"),
+            "date": pd.Series(pd.to_datetime(date_series).dt.date.to_numpy(), index=normalized_index),
+            "open": pd.Series(pd.to_numeric(df[open_col], errors="coerce").to_numpy(), index=normalized_index),
+            "high": pd.Series(pd.to_numeric(df[high_col], errors="coerce").to_numpy(), index=normalized_index),
+            "low": pd.Series(pd.to_numeric(df[low_col], errors="coerce").to_numpy(), index=normalized_index),
+            "close": pd.Series(pd.to_numeric(df[close_col], errors="coerce").to_numpy(), index=normalized_index),
             "volume": (
-                pd.to_numeric(df[volume_col], errors="coerce").fillna(0).astype(int)
+                pd.Series(
+                    pd.to_numeric(df[volume_col], errors="coerce").fillna(0).astype(int).to_numpy(),
+                    index=normalized_index,
+                )
                 if volume_col
                 else 0
             ),
-        }
+        },
+        index=normalized_index,
     )
 
     return normalized.dropna(subset=["close"])
