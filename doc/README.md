@@ -7,5 +7,3 @@ Core docs live here:
 - Database schema (`doc/database.md`)
 - Data sources (`doc/data_sources.md`)
 - Development guide (`doc/development.md`)
-
-Supplemental planning and assessment artifacts live in `docs/`.
