@@ -134,7 +134,7 @@ python -m data_fetchers.stock_prices --use-raw-close AAPL MSFT
 python -m data_fetchers.commodities
 ```
 
-**Gold Prices (OpenBB + CSV)**:
+**Gold Prices (CSV normalized via OpenBB helper)**:
 ```bash
 python -m data_fetchers.gold_prices
 ```
@@ -223,10 +223,22 @@ Gold prices are sourced from the datasets/gold-prices monthly CSV:
 
 ## Dashboard
 
-Run the Streamlit dashboard:
+The dashboard is a local Streamlit app. Run these commands from the repo root.
+
+Install the optional dashboard dependencies if they are not already present:
+```bash
+uv sync --group dashboard
+```
+
+Make sure the normal database environment variables are available before starting it:
+`POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` (optional: `POSTGRES_HOST`, `POSTGRES_PORT`).
+
+Start the dashboard:
 ```bash
 uv run streamlit run dashboard/app.py
 ```
+
+Streamlit prints the local URL after startup, usually `http://localhost:8501`. In a devcontainer, use the forwarded `8501` port from VS Code if the browser does not open automatically.
 
 ## Testing
 
@@ -234,15 +246,15 @@ Tests are written using `pytest` and located in the `tests/` directory.
 
 Run all tests:
 ```bash
-pytest tests/
+uv run pytest tests/
 ```
 
 Run a specific test file:
 ```bash
-pytest tests/test_database.py
+uv run pytest tests/test_database.py
 ```
 
 Run only integration tests:
 ```bash
-pytest -m integration
+uv run pytest -m integration
 ```
