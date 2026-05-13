@@ -7,3 +7,7 @@ Core docs live here:
 - Database schema (`doc/database.md`)
 - Data sources (`doc/data_sources.md`)
 - Development guide (`doc/development.md`)
+
+Planning docs live under `doc/plans/`:
+- Active implementation plans: `doc/plans/current/`
+- Completed or superseded plans: `doc/plans/legacy/`

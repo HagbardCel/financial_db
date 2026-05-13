@@ -3,7 +3,7 @@
 This document details the plan for **Phase 3** of the roadmap: **Standardized Data Fetching**.
 This phase focuses on enforcing a strict, consistent architecture for all data retrieval scripts. By the end of this phase, all data fetchers will inherit from a robust `BaseFetcher` class and share a common lifecycle (`fetch` -> `transform` -> `save`).
 
-**Roadmap Reference**: Item #3 "Standardized Data Fetching" in `doc/roadmap.md`.
+**Roadmap Reference**: Item #3 "Standardized Data Fetching" in `doc/plans/legacy/roadmap.md`.
 
 ## Objective
 To eliminate code duplication and inconsistency across data fetchers by:

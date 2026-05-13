@@ -236,7 +236,7 @@ To support the new tables:
 
 5. **GHZ72 identification**
    - Decision: store an authoritative GHZ72 code list / mapping file in-repo.
-   - Current artifact: `doc/references/raad010_ghz72.csv` (starter scaffold; fill with authoritative RAAD010 mapping before production use).
+   - Current artifact: `doc/plans/legacy/references_raad010_ghz72.csv` (starter scaffold; fill with authoritative RAAD010 mapping before production use).
 
 6. **Return units**
    - Decision: auto-detect and normalize all return series to **decimal** before writing to `factor_returns`.
