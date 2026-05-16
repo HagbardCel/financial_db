@@ -110,7 +110,7 @@ def test_build_command_forwards_args_unchanged():
 def test_run_fetchers_continues_and_reports_failures():
     entries = [
         FetcherEntry("bonds", "data_fetchers.bonds", True, []),
-        FetcherEntry("stock_prices", "data_fetchers.stock_prices", False, ["AAPL"]),
+        FetcherEntry("openbb_equity_prices", "data_fetchers.openbb_equity_prices", False, ["AAPL"]),
         FetcherEntry("aqr", "data_fetchers.aqr", True, ["--refresh"]),
     ]
     commands: list[list[str]] = []
@@ -127,7 +127,7 @@ def test_run_fetchers_continues_and_reports_failures():
 
     results = run_fetchers(entries, runner=fake_runner)
 
-    assert [result.name for result in results] == ["bonds", "stock_prices", "aqr"]
+    assert [result.name for result in results] == ["bonds", "openbb_equity_prices", "aqr"]
     assert results[0].returncode == 0
     assert results[1].skipped is True
     assert results[2].returncode == 2

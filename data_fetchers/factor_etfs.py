@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import argparse
 import logging
+from datetime import datetime, timezone
 from typing import Dict, Iterable, List, Optional
 
-from data_fetchers.stock_prices import OpenBBEquityPriceFetcher
+import pandas as pd
+
+from data_fetchers.openbb_equity_prices import OpenBBEquityPriceFetcher
 from db_utils.config import get_database_config
 from db_utils.database import DatabaseConnection
 from db_utils.repository import DataRepository
@@ -40,6 +43,47 @@ def _resolve_tickers(etf_set: str, tickers: Optional[Iterable[str]]) -> List[str
     if etf_set not in ETF_SETS:
         raise ValueError(f"Unknown ETF set '{etf_set}'. Available: {', '.join(sorted(ETF_SETS.keys()))}")
     return list(ETF_SETS[etf_set].keys())
+
+
+def _etf_reference_frames(tickers: Iterable[str]) -> tuple[pd.DataFrame, pd.DataFrame]:
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    securities = []
+    listings = []
+    for ticker in tickers:
+        security_id = f"openbb:{ticker}"
+        securities.append(
+            {
+                "security_id": security_id,
+                "isin": None,
+                "name": ETF_NAMES.get(ticker, ticker),
+                "security_type": "etf",
+                "country": None,
+                "currency_primary": None,
+                "source_first_seen": "openbb",
+                "source_last_seen": "openbb",
+                "active_flag_current": True,
+                "created_at_utc": now,
+                "updated_at_utc": now,
+            }
+        )
+        listings.append(
+            {
+                "listing_id": security_id,
+                "security_id": security_id,
+                "provider": "openbb",
+                "provider_symbol": ticker,
+                "exchange_code": None,
+                "mic": None,
+                "trading_currency": None,
+                "isin": None,
+                "name": ETF_NAMES.get(ticker, ticker),
+                "first_seen_date": None,
+                "last_seen_date": None,
+                "is_currently_tradable": True,
+                "source_file": None,
+            }
+        )
+    return pd.DataFrame(securities), pd.DataFrame(listings)
 
 
 def parse_args() -> argparse.Namespace:
@@ -80,6 +124,10 @@ def main() -> int:
 
     with DatabaseConnection(config=db_config) as db:
         repo = DataRepository(db)
+        securities, listings = _etf_reference_frames(tickers)
+        repo.save_dataframe(securities, "securities")
+        repo.save_dataframe(listings, "listings")
+        db.conn.commit()
         for symbol in tickers:
             try:
                 fetcher = OpenBBEquityPriceFetcher(
@@ -90,7 +138,7 @@ def main() -> int:
                     prefer_adjusted=prefer_adjusted,
                     db_config=db_config,
                 )
-                fetcher.run_with_repository(repo, table_name="stock_prices")
+                fetcher.run_with_repository(repo, table_name="equity_price_bars")
                 db.conn.commit()
                 logger.info("Successfully processed %s", symbol)
             except Exception:

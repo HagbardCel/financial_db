@@ -127,15 +127,15 @@ def test_fetch_ohlcv_series_builds_price_query_with_symbol_and_date_filters(monk
 
     result = da.fetch_ohlcv_series(
         engine,
-        da.PRICE_DATASETS["Stock Prices"],
+        da.PRICE_DATASETS["Equity Price Bars"],
         symbol="SPY",
         start_date="2020-01-01",
         end_date="2020-12-31",
     )
 
     assert captured["query"] == (
-        "SELECT date, open, high, low, close, volume FROM stock_prices "
-        "WHERE symbol = :symbol AND date BETWEEN :start_date AND :end_date "
+        "SELECT date, open, high, low, close, volume FROM equity_price_bars "
+        "WHERE provider_symbol = :symbol AND date BETWEEN :start_date AND :end_date "
         "ORDER BY date ASC"
     )
     assert captured["params"] == {

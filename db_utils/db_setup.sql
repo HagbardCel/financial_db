@@ -1,10 +1,6 @@
 -- Create Tables
-CREATE TABLE IF NOT EXISTS assets_prices (
-    id VARCHAR(10) NOT NULL,
-    date DATE NOT NULL,
-    price_usd NUMERIC(10, 2),
-    PRIMARY KEY (id, date)
-);
+DROP TABLE IF EXISTS assets_prices;
+DROP TABLE IF EXISTS stock_prices;
 
 CREATE TABLE IF NOT EXISTS interest_rates (
     date DATE NOT NULL,
@@ -22,17 +18,6 @@ CREATE TABLE IF NOT EXISTS indices (
     index_name VARCHAR(50) NOT NULL,
     value NUMERIC(16, 2),
     PRIMARY KEY (id, date)
-);
-
-CREATE TABLE IF NOT EXISTS stock_prices (
-    symbol VARCHAR(10) NOT NULL,
-    date DATE NOT NULL,
-    open NUMERIC(16, 4),
-    high NUMERIC(16, 4),
-    low NUMERIC(16, 4),
-    close NUMERIC(16, 4),
-    volume BIGINT,
-    PRIMARY KEY (symbol, date)
 );
 
 CREATE TABLE IF NOT EXISTS commodity_prices (
@@ -126,6 +111,217 @@ CREATE INDEX IF NOT EXISTS idx_portfolio_characteristics_set_freq_char_date
     ON portfolio_characteristics (portfolio_set, frequency, characteristic, date);
 CREATE INDEX IF NOT EXISTS idx_portfolio_characteristics_date
     ON portfolio_characteristics (date);
+
+CREATE TABLE IF NOT EXISTS ingestion_manifests (
+    manifest_id TEXT NOT NULL,
+    source TEXT NOT NULL,
+    source_url TEXT,
+    local_path TEXT,
+    downloaded_at_utc TIMESTAMP,
+    sha256 TEXT,
+    byte_size BIGINT,
+    row_count INTEGER,
+    status TEXT NOT NULL,
+    notes TEXT,
+    PRIMARY KEY (manifest_id)
+);
+
+CREATE TABLE IF NOT EXISTS pipeline_runs (
+    run_id TEXT NOT NULL,
+    strategy_family TEXT NOT NULL,
+    profile TEXT NOT NULL,
+    config_path TEXT,
+    config_sha256 TEXT,
+    git_commit_hash TEXT,
+    run_started_at_utc TIMESTAMP,
+    run_finished_at_utc TIMESTAMP,
+    status TEXT NOT NULL,
+    notes TEXT,
+    PRIMARY KEY (run_id)
+);
+
+CREATE TABLE IF NOT EXISTS securities (
+    security_id TEXT NOT NULL,
+    isin TEXT,
+    name TEXT NOT NULL,
+    security_type TEXT,
+    country TEXT,
+    currency_primary TEXT,
+    source_first_seen TEXT NOT NULL,
+    source_last_seen TEXT NOT NULL,
+    active_flag_current BOOLEAN NOT NULL,
+    created_at_utc TIMESTAMP NOT NULL,
+    updated_at_utc TIMESTAMP NOT NULL,
+    PRIMARY KEY (security_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_securities_isin
+    ON securities (isin);
+
+CREATE TABLE IF NOT EXISTS listings (
+    listing_id TEXT NOT NULL,
+    security_id TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    provider_symbol TEXT NOT NULL,
+    exchange_code TEXT,
+    mic TEXT,
+    trading_currency TEXT,
+    isin TEXT,
+    name TEXT,
+    first_seen_date DATE,
+    last_seen_date DATE,
+    is_currently_tradable BOOLEAN,
+    source_file TEXT,
+    PRIMARY KEY (listing_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_listings_security_id
+    ON listings (security_id);
+CREATE INDEX IF NOT EXISTS idx_listings_provider_symbol
+    ON listings (provider, provider_symbol);
+
+CREATE TABLE IF NOT EXISTS equity_price_bars (
+    provider TEXT NOT NULL,
+    provider_symbol TEXT NOT NULL,
+    security_id TEXT,
+    listing_id TEXT,
+    date DATE NOT NULL,
+    open NUMERIC(20, 6),
+    high NUMERIC(20, 6),
+    low NUMERIC(20, 6),
+    close NUMERIC(20, 6),
+    volume NUMERIC(24, 4),
+    currency TEXT,
+    adjustment_status TEXT NOT NULL,
+    source_file TEXT,
+    ingested_at_utc TIMESTAMP NOT NULL,
+    PRIMARY KEY (provider, provider_symbol, date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_equity_price_bars_security_date
+    ON equity_price_bars (security_id, date);
+CREATE INDEX IF NOT EXISTS idx_equity_price_bars_listing_date
+    ON equity_price_bars (listing_id, date);
+
+CREATE TABLE IF NOT EXISTS fx_rates (
+    date DATE NOT NULL,
+    currency TEXT NOT NULL,
+    units_per_eur NUMERIC(20, 8) NOT NULL,
+    source TEXT NOT NULL,
+    ingested_at_utc TIMESTAMP NOT NULL,
+    PRIMARY KEY (date, currency, source)
+);
+
+CREATE TABLE IF NOT EXISTS equity_prices_eur (
+    security_id TEXT NOT NULL,
+    listing_id TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    provider_symbol TEXT NOT NULL,
+    date DATE NOT NULL,
+    price_local NUMERIC(20, 6),
+    currency TEXT NOT NULL,
+    units_per_eur NUMERIC(20, 8),
+    price_eur NUMERIC(20, 6),
+    is_fx_forward_filled BOOLEAN NOT NULL,
+    source_price_file TEXT,
+    source_fx_file TEXT,
+    PRIMARY KEY (security_id, listing_id, provider, date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_equity_prices_eur_date
+    ON equity_prices_eur (date);
+
+CREATE TABLE IF NOT EXISTS equity_eligibility (
+    security_id TEXT NOT NULL,
+    date DATE NOT NULL,
+    eligible_price_available BOOLEAN NOT NULL,
+    eligible_min_history BOOLEAN NOT NULL,
+    eligible_min_price BOOLEAN NOT NULL,
+    eligible_missingness BOOLEAN NOT NULL,
+    eligible_security_type BOOLEAN NOT NULL,
+    eligible_current_tradable_proxy BOOLEAN NOT NULL,
+    eligible_final BOOLEAN NOT NULL,
+    ineligibility_reason TEXT,
+    PRIMARY KEY (security_id, date)
+);
+
+CREATE TABLE IF NOT EXISTS stock_momentum_panels (
+    strategy_family TEXT NOT NULL,
+    profile TEXT NOT NULL,
+    rebalance_frequency TEXT NOT NULL,
+    rebalance_date DATE NOT NULL,
+    signal_date DATE NOT NULL,
+    execution_date DATE NOT NULL,
+    security_id TEXT NOT NULL,
+    listing_id TEXT,
+    provider_symbol TEXT,
+    name TEXT,
+    currency TEXT,
+    price_eur_signal NUMERIC(20, 6),
+    price_eur_lookback NUMERIC(20, 6),
+    momentum_3m NUMERIC,
+    momentum_6m NUMERIC,
+    momentum_9m NUMERIC,
+    momentum_12m NUMERIC,
+    momentum_12_1m NUMERIC,
+    volatility_3m NUMERIC,
+    volatility_6m NUMERIC,
+    volatility_12m NUMERIC,
+    rank_metric NUMERIC,
+    rank_ascending_false INTEGER,
+    eligible_final BOOLEAN NOT NULL,
+    run_id TEXT,
+    PRIMARY KEY (strategy_family, profile, rebalance_frequency, rebalance_date, security_id)
+);
+
+CREATE TABLE IF NOT EXISTS stock_momentum_trades (
+    strategy_id TEXT NOT NULL,
+    rebalance_date DATE NOT NULL,
+    execution_date DATE NOT NULL,
+    security_id TEXT NOT NULL,
+    provider_symbol TEXT,
+    side TEXT NOT NULL,
+    target_weight NUMERIC NOT NULL,
+    previous_weight NUMERIC NOT NULL,
+    trade_weight NUMERIC NOT NULL,
+    price_eur NUMERIC(20, 6),
+    gross_trade_value_eur NUMERIC(20, 6),
+    transaction_cost_eur NUMERIC(20, 6),
+    rationale_rank INTEGER,
+    rationale_momentum NUMERIC,
+    run_id TEXT,
+    PRIMARY KEY (strategy_id, rebalance_date, security_id, side)
+);
+
+CREATE TABLE IF NOT EXISTS stock_momentum_results (
+    strategy_id TEXT NOT NULL,
+    rebalance_frequency TEXT NOT NULL,
+    top_n INTEGER NOT NULL,
+    lookback_months INTEGER NOT NULL,
+    skip_recent_months INTEGER NOT NULL,
+    weighting_scheme TEXT NOT NULL,
+    transaction_cost_bps_one_way NUMERIC NOT NULL,
+    start_date DATE,
+    end_date DATE,
+    total_return NUMERIC,
+    cagr NUMERIC,
+    annualized_volatility NUMERIC,
+    sharpe_ratio NUMERIC,
+    max_drawdown NUMERIC,
+    turnover NUMERIC,
+    rebalance_count INTEGER,
+    trade_count INTEGER,
+    run_id TEXT,
+    PRIMARY KEY (
+        strategy_id,
+        rebalance_frequency,
+        top_n,
+        lookback_months,
+        skip_recent_months,
+        weighting_scheme,
+        transaction_cost_bps_one_way
+    )
+);
 
 -- Derived views
 

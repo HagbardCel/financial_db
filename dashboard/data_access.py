@@ -42,9 +42,9 @@ class BrowserDataset:
 
 
 PRICE_DATASETS: Dict[str, SeriesDataset] = {
-    "Stock Prices": SeriesDataset(
-        table="stock_prices",
-        id_col="symbol",
+    "Equity Price Bars": SeriesDataset(
+        table="equity_price_bars",
+        id_col="provider_symbol",
         date_col="date",
         value_col="close",
     ),
@@ -57,12 +57,6 @@ PRICE_DATASETS: Dict[str, SeriesDataset] = {
 }
 
 SERIES_DATASETS: Dict[str, SeriesDataset] = {
-    "Assets Prices": SeriesDataset(
-        table="assets_prices",
-        id_col="id",
-        date_col="date",
-        value_col="price_usd",
-    ),
     "Commodity Prices (Close)": SeriesDataset(
         table="commodity_prices",
         id_col="symbol",
@@ -86,7 +80,6 @@ SERIES_DATASETS: Dict[str, SeriesDataset] = {
 }
 
 COMPARE_DATASETS: Dict[str, SeriesDataset] = {
-    "Assets Prices": SERIES_DATASETS["Assets Prices"],
     "Indices": SERIES_DATASETS["Indices"],
     "Macro Data": SERIES_DATASETS["Macro Data"],
     "Commodity Prices (Close)": SERIES_DATASETS["Commodity Prices (Close)"],
@@ -103,9 +96,11 @@ DERIVED_DATASET = SeriesDataset(
 COMPARE_DATASETS["Shiller Derived"] = DERIVED_DATASET
 
 BROWSER_DATASETS: Dict[str, BrowserDataset] = {
-    "Assets Prices": BrowserDataset(table="assets_prices", date_col="date", id_col="id"),
     "Indices": BrowserDataset(table="indices", date_col="date", id_col="id"),
-    "Stock Prices": BrowserDataset(table="stock_prices", date_col="date", id_col="symbol"),
+    "Securities": BrowserDataset(table="securities", date_col="updated_at_utc", id_col="security_id"),
+    "Listings": BrowserDataset(table="listings", date_col="last_seen_date", id_col="listing_id"),
+    "Equity Price Bars": BrowserDataset(table="equity_price_bars", date_col="date", id_col="provider_symbol"),
+    "Equity Prices EUR": BrowserDataset(table="equity_prices_eur", date_col="date", id_col="security_id"),
     "Commodity Prices": BrowserDataset(table="commodity_prices", date_col="date", id_col="symbol"),
     "Macro Data": BrowserDataset(table="macro_data", date_col="date", id_col="id"),
     "Interest Rates": BrowserDataset(
@@ -122,9 +117,11 @@ BROWSER_DATASETS: Dict[str, BrowserDataset] = {
 }
 
 OVERVIEW_TABLES: Dict[str, str] = {
-    "Assets Prices": "assets_prices",
     "Indices": "indices",
-    "Stock Prices": "stock_prices",
+    "Securities": "securities",
+    "Listings": "listings",
+    "Equity Price Bars": "equity_price_bars",
+    "Equity Prices EUR": "equity_prices_eur",
     "Commodity Prices": "commodity_prices",
     "Interest Rates": "interest_rates",
     "Macro Data": "macro_data",

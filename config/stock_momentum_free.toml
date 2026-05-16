@@ -1,0 +1,48 @@
+[project]
+name = "stock_momentum"
+profile = "free_prototype"
+base_currency = "EUR"
+artifact_dir = "derived/stock_momentum"
+start_date = "2000-01-01"
+end_date = ""
+
+[sources.xetra]
+enabled = true
+source_page = "https://www.cashmarket.deutsche-boerse.com/cash-en/trading/Tradable-Instruments-Xetra/Downloads/xetra-downloads"
+expected_file_pattern = "t7-xetr-allTradableInstruments*.csv"
+download_link_text = "T7 (Xetra) All tradable instruments"
+raw_dir = "derived/stock_momentum/raw/xetra"
+
+[sources.stooq]
+enabled = true
+source_page = "https://stooq.com/db/h/"
+raw_bulk_dir = "derived/stock_momentum/raw/stooq/bulk"
+markets = ["us", "de", "uk", "fr", "nl", "ch"]
+
+[sources.ecb_fx]
+enabled = true
+api_base = "https://data-api.ecb.europa.eu/service/data"
+series_key = "D..EUR.SP00.A"
+raw_dir = "derived/stock_momentum/raw/ecb_fx"
+
+[universe]
+include_trading_venues = ["XETR"]
+include_security_types = ["common_stock"]
+exclude_name_patterns = ["ETF", "ETC", "ETN", "FUND", "WARRANT", "CERTIFICATE", "TURBO", "OPTION", "BOND"]
+min_price_eur = 2.0
+min_history_months_before_eligibility = 13
+max_stale_price_days_at_rebalance = 5
+max_missing_daily_price_ratio_per_year = 0.10
+
+[momentum]
+lookbacks_months = [3, 6, 9, 12]
+skip_recent_months = [0, 1]
+rank_metric = "total_return_eur"
+positive_momentum_only = false
+
+[backtest]
+rebalance_frequencies = ["monthly", "quarterly"]
+top_n = [3, 5, 10]
+weighting_schemes = ["equal_weight", "positive_momentum_proportional"]
+cash_return_annual = 0.0
+transaction_cost_bps_one_way = [0, 10, 25, 50, 100]

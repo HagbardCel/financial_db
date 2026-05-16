@@ -14,7 +14,10 @@ order = [
   "ken_french",
   "aqr",
   "open_asset_pricing",
-  "stock_prices",
+  "xetra_instruments",
+  "stooq_prices",
+  "ecb_fx",
+  "openbb_equity_prices",
   "shiller_cape",
   "open_asset_pricing_portfolio_characteristics",
 ]
@@ -67,13 +70,42 @@ enabled = true
 description = "Open Asset Pricing factors plus metadata."
 args = []
 
-[fetchers.stock_prices]
-module = "data_fetchers.stock_prices"
+[fetchers.openbb_equity_prices]
+module = "data_fetchers.openbb_equity_prices"
 enabled = false
-description = "Disabled by default because this fetcher needs explicit tickers."
+description = "OpenBB equity bars into equity_price_bars; disabled by default because this fetcher needs explicit tickers."
 args = [
   "AAPL",
   "MSFT",
+]
+
+[fetchers.xetra_instruments]
+module = "data_fetchers.xetra_instruments"
+enabled = false
+description = "Xetra tradable instruments for stock momentum; requires a manually downloaded CSV."
+args = [
+  "--config",
+  "config/stock_momentum_free.toml",
+]
+
+[fetchers.stooq_prices]
+module = "data_fetchers.stooq_prices"
+enabled = false
+description = "Stooq equity price history for stock momentum; requires raw files or explicit symbols."
+args = [
+  "--config",
+  "config/stock_momentum_free.toml",
+  "--zip",
+  "derived/stock_momentum/raw/stooq/bulk/stooq_daily.zip",
+]
+
+[fetchers.ecb_fx]
+module = "data_fetchers.ecb_fx"
+enabled = false
+description = "ECB EUR FX reference rates for stock momentum."
+args = [
+  "--config",
+  "config/stock_momentum_free.toml",
 ]
 
 [fetchers.shiller_cape]
