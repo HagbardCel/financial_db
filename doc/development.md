@@ -94,7 +94,8 @@ Config notes:
 - Each `[fetchers.<name>]` section defines `module`, `enabled`, `description`, and `args`.
 - `args` is forwarded unchanged to the target fetcher CLI.
 - Sources that need operator-provided parameters stay disabled by default, except `shiller_cape` when `config/data_refresh.toml` contains a current Excel URL:
-  - `stock_prices` needs explicit ticker symbols.
+  - `openbb_equity_prices` needs explicit ticker symbols.
+  - stock momentum Xetra/Stooq inputs need operator-provided raw files.
   - `shiller_cape` needs a current upstream Excel URL and is currently enabled in the default config.
   - `open_asset_pricing_portfolio_characteristics` needs `--portfolio-scores-url`.
 
@@ -120,14 +121,29 @@ Explicit provider:
 python -m data_fetchers.bonds --provider fred
 ```
 
-**Equity Prices (OpenBB)**:
+**Equity Price Bars (OpenBB)**:
 ```bash
-python -m data_fetchers.stock_prices AAPL MSFT
+python -m data_fetchers.openbb_equity_prices AAPL MSFT
 ```
 Defaults to adjusted close (when available). To force raw close:
 ```bash
-python -m data_fetchers.stock_prices --use-raw-close AAPL MSFT
+python -m data_fetchers.openbb_equity_prices --use-raw-close AAPL MSFT
 ```
+These rows are stored in `equity_price_bars`; the old `stock_prices` table is no longer part of the active schema.
+
+**Stock Momentum Free Prototype Inputs**:
+```bash
+python -m data_fetchers.xetra_instruments --config config/stock_momentum_free.toml
+python -m data_fetchers.stooq_prices --config config/stock_momentum_free.toml --zip derived/stock_momentum/raw/stooq/bulk/stooq_daily.zip
+python -m data_fetchers.ecb_fx --config config/stock_momentum_free.toml
+python -m analyses.stock_momentum.build_price_panel --config config/stock_momentum_free.toml
+python -m analyses.stock_momentum.build_momentum_panel --config config/stock_momentum_free.toml --frequency monthly
+python -m analyses.stock_momentum.run_backtest --config config/stock_momentum_free.toml
+python -m analyses.stock_momentum.validate --config config/stock_momentum_free.toml
+```
+
+The stock momentum free prototype uses a current tradability proxy, incomplete delisting coverage, and Stooq prices with unverified adjustment quality. Use it for engineering and signal intuition, not final allocation conclusions.
+Xetra and ECB are downloaded automatically from public sources by default. Stooq bulk files are still manual for now; use `--file` or `--zip` after downloading them.
 
 **Commodity Prices (OpenBB)**:
 ```bash
@@ -182,7 +198,7 @@ Run a lightweight, repeatable ingest check that records per-command runtime and 
 
 ```bash
 python scripts/ingest_smoke_check.py \
-  --command "python -m data_fetchers.stock_prices AAPL MSFT --start 2024-01-01 --end 2024-03-31" \
+  --command "python -m data_fetchers.openbb_equity_prices AAPL MSFT --start 2024-01-01 --end 2024-03-31" \
   --command "python -m data_fetchers.commodities GC=F SI=F --start 2024-01-01 --end 2024-03-31" \
   --runs 2 \
   --label "baseline" \

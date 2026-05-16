@@ -8,13 +8,6 @@ For a source-oriented view of what populates each table, see `doc/data_sources.m
 
 The database consists of the following primary tables, defined in `db_utils/db_setup.sql` and mapped in `db_utils/database.py`.
 
-### `assets_prices`
-Stores historical price data for various financial assets.
--   `id` (TEXT): Unique identifier for the asset (e.g., ticker symbol).
--   `date` (DATE): Observational date.
--   `price_usd` (NUMERIC): Price of the asset in USD.
--   **Primary Key**: `(id, date)`
-
 ### `interest_rates`
 Stores historical interest rate data across different regions and maturities.
 -   `date` (DATE): Observational date.
@@ -34,17 +27,53 @@ Stores historical values for market indices.
 -   `value` (NUMERIC): The index value.
 -   **Primary Key**: `(id, date)`
 
-### `stock_prices`
-Stores historical price data for equities and other ticker-based assets.
--   `symbol` (TEXT): Ticker symbol.
+### `securities`
+Stores one row per economic security where the source data allows stable identification.
+-   `security_id` (TEXT): Stable internal identifier, preferably ISIN when available.
+-   `isin` (TEXT): ISIN, nullable.
+-   `name` (TEXT): Security name.
+-   `security_type` (TEXT): Normalized type such as `common_stock` or `etf`.
+-   `currency_primary` (TEXT): Primary trading/reporting currency when known.
+-   **Primary Key**: `security_id`
+
+### `listings`
+Stores tradable listings or provider symbols attached to securities.
+-   `listing_id` (TEXT): Stable listing identifier.
+-   `security_id` (TEXT): Parent security identifier.
+-   `provider` (TEXT): Source/provider, e.g. `xetra`, `stooq`, `openbb`.
+-   `provider_symbol` (TEXT): Source symbol.
+-   `exchange_code`, `mic`, `trading_currency`, `isin`, `name`: Listing metadata.
+-   **Primary Key**: `listing_id`
+
+### `equity_price_bars`
+Stores normalized daily OHLCV bars for equities and ETFs.
+-   `provider` (TEXT): Source/provider, e.g. `stooq` or `openbb`.
+-   `provider_symbol` (TEXT): Source symbol.
+-   `security_id`, `listing_id` (TEXT): Optional mapped identifiers.
 -   `date` (DATE): Observational date.
 -   `open` (NUMERIC): Open price.
 -   `high` (NUMERIC): High price.
 -   `low` (NUMERIC): Low price.
 -   `close` (NUMERIC): Close price (stored as **adjusted close when available**, otherwise raw close).
--   `volume` (BIGINT): Trade volume.
--   **Primary Key**: `(symbol, date)`
--   **Source provenance note**: the upstream OpenBB provider used at ingest time is not stored in this table.
+-   `volume` (NUMERIC): Trade volume.
+-   `currency` (TEXT): Trading currency when known.
+-   `adjustment_status` (TEXT): Adjustment provenance such as `unknown` or `adjusted_preferred`.
+-   **Primary Key**: `(provider, provider_symbol, date)`
+
+### `fx_rates`
+Stores long-format FX rates against EUR.
+-   `date` (DATE): Observation date.
+-   `currency` (TEXT): Currency code.
+-   `units_per_eur` (NUMERIC): Number of foreign-currency units for 1 EUR.
+-   `source` (TEXT): FX source, currently `ECB`.
+-   **Primary Key**: `(date, currency, source)`
+
+### `equity_prices_eur`
+Stores EUR-denominated equity price panel rows derived from `equity_price_bars` and `fx_rates`.
+-   `security_id`, `listing_id`, `provider`, `provider_symbol`, `date`: Instrument/date keys.
+-   `price_local`, `currency`, `units_per_eur`, `price_eur`: Conversion fields.
+-   `is_fx_forward_filled`: Whether FX was carried forward within the allowed tolerance.
+-   **Primary Key**: `(security_id, listing_id, provider, date)`
 
 ### `commodity_prices`
 Stores historical price data for commodities.
@@ -121,6 +150,12 @@ Used for storing non-standard or derived data during testing or development phas
 -   `long_name` (TEXT): Description.
 -   `value` (NUMERIC): Value.
 -   **Primary Key**: `(id, date)`
+
+### `stock_momentum_*`
+The `stock_momentum_panels`, `stock_momentum_trades`, and `stock_momentum_results` tables store strategy research outputs for stock momentum experiments. They are prototype/research tables and include `strategy_family`, `profile`, and `run_id` fields where applicable.
+
+### `ingestion_manifests` and `pipeline_runs`
+These tables record source-file checksums, row counts, run metadata, and execution status for reproducibility.
 
 ## Views
 

@@ -12,7 +12,7 @@ Conventions:
 Not every table stores source provenance the same way:
 
 - Persisted source columns: `factor_returns`, `portfolio_returns`, `characteristic_metadata`, and `portfolio_characteristics` store a `source` value directly in the table.
-- Inferred provenance: `stock_prices`, `commodity_prices`, `interest_rates`, `macro_data`, and `test_data` do **not** store a dedicated source column. For these tables, provenance is inferred from the ingest command, configured OpenBB provider/path, symbol or id, and `config/data_refresh.toml`.
+- Inferred provenance: `commodity_prices`, `interest_rates`, `macro_data`, and `test_data` do **not** store a dedicated source column. For these tables, provenance is inferred from the ingest command, configured OpenBB provider/path, symbol or id, and `config/data_refresh.toml`.
 - OpenBB-backed tables are provider-dependent. The OpenBB endpoint path defaults live in `data_fetchers/openbb_client.py`, while provider overrides are passed by CLI arguments or environment variables such as `OPENBB_EQUITY_PROVIDER`, `OPENBB_COMMODITY_PROVIDER`, `OPENBB_OIL_PROVIDER`, and `OPENBB_RATES_PROVIDER`.
 
 ## Summary Matrix
@@ -21,14 +21,17 @@ Not every table stores source provenance the same way:
 | --- | --- | --- | --- | --- | --- |
 | `factor_returns` | Factor return series | Ken French ZIP files, AQR Excel files, Open Asset Pricing Google Drive files | Monthly today; daily optional for OAPD | `source`, `factor_set`, `factor`, `date` | Included by default |
 | `portfolio_returns` | Portfolio return series | AQR Excel files, Ken French ZIP files | Monthly | `source`, `portfolio_set`, `universe`, `portfolio`, `date` | Included by default |
-| `stock_prices` | Equity and ETF OHLCV history | OpenBB `equity.price.historical` provider data | Daily | `symbol`, `date` | `factor_etfs` enabled by default; direct `stock_prices` disabled until explicit tickers are configured |
+| `securities` | Security master | Xetra tradable instruments, OpenBB ETF metadata | Static/current snapshot | `security_id` | Xetra disabled until source file is provided; factor ETF metadata included by default |
+| `listings` | Provider/listing identifiers | Xetra, Stooq mappings, OpenBB ETF metadata | Static/current snapshot | `listing_id`, `provider_symbol` | Xetra disabled until source file is provided; factor ETF metadata included by default |
+| `equity_price_bars` | Equity and ETF OHLCV history | Stooq daily files, OpenBB `equity.price.historical` provider data | Daily | `provider`, `provider_symbol`, `date` | Stooq disabled until source files are provided; `factor_etfs` enabled by default |
+| `fx_rates` | FX rates against EUR | ECB reference rates | Daily | `currency`, `date` | Disabled by default for stock momentum profile |
+| `equity_prices_eur` | EUR-denominated equity panel | Derived from `equity_price_bars` + `fx_rates` | Daily | `security_id`, `listing_id`, `date` | Built by stock momentum analysis command |
 | `commodity_prices` | Commodity, gold, and oil benchmark history | OpenBB futures/spot provider data, datasets/gold-prices CSV, EIA oil history pages | Daily for OpenBB futures; monthly for gold/oil spot; annual backfill for long-run U.S. oil | `symbol`, `date` | Included by default for commodities, gold, and oil |
 | `interest_rates` | Treasury rate series | OpenBB `economy.fred_series` backed by FRED series IDs | Daily | `region`, `rate_type`, `maturity`, `currency`, `date` | Included by default |
 | `macro_data` | Shiller macro series | Robert Shiller online Excel data | Monthly | `id`, `date` | Included by default when `config/data_refresh.toml` contains a current Excel URL |
 | `test_data` | Derived Shiller series | Derived from Robert Shiller online Excel data | Monthly | `id`, `date` | Same ingest as `macro_data` |
 | `characteristic_metadata` | Characteristic definitions | Open Asset Pricing `SignalDoc.csv` Google Drive file | Static/reference | `source`, `characteristic_set`, `characteristic` | Included by default |
 | `portfolio_characteristics` | Portfolio-level characteristic time series | Open Asset Pricing-compatible portfolio scores URL supplied by operator | Depends on provided file | `source`, `portfolio_set`, `universe`, `portfolio`, `characteristic`, `date` | Disabled until a real source URL is configured |
-| `assets_prices` | Generic asset prices | No pipeline currently implemented | N/A | `id`, `date` | Not populated |
 | `indices` | Generic index levels | No pipeline currently implemented | N/A | `id`, `date` | Not populated |
 
 ---
@@ -127,28 +130,42 @@ Long-format portfolio **return** series (stored as decimals), typically long-onl
 
 ---
 
-## `stock_prices`
-Daily OHLCV price history for equities/ETFs.
+## Equity Security Master And Price Bars
+Normalized equity reference, listing, and OHLCV history for stock momentum research.
 
 ### Sources currently ingested
-1. **OpenBB SDK (provider-backed)** (no `source` column in-table)
+1. **OpenBB SDK factor ETFs** (`provider = 'openbb'`)
    - Ingested by:
-     - `python -m data_fetchers.stock_prices <TICKERS...>`
-     - `python -m data_fetchers.factor_etfs --set <msci_world|us>` (wrapper around `stock_prices`)
+     - `python -m data_fetchers.factor_etfs --set <msci_world|us>`
+     - `python -m data_fetchers.openbb_equity_prices <TICKERS...>` for explicit symbols
    - OpenBB path:
      - Default endpoint path: `equity.price.historical`
      - Override path: `OPENBB_EQUITY_HISTORICAL_PATH`
      - Provider override: `--provider` or `OPENBB_EQUITY_PROVIDER`
    - Distinguish in-table:
-     - `symbol`: the ticker used for ingestion
-     - The chosen OpenBB provider is determined at ingest time (env vars) and is **not persisted** in the table.
+     - `provider`, `provider_symbol`
+     - `adjustment_status`
    - Upstream docs:
      - OpenBB documentation: https://docs.openbb.co
 
+2. **Xetra tradable instruments** (`provider = 'xetra'`)
+   - Ingested by: `python -m data_fetchers.xetra_instruments --config config/stock_momentum_free.toml`
+   - Writes normalized rows to `securities` and `listings`.
+   - Downloads automatically from the configured Deutsche Borse downloads page by default. `--file` and `--url` are supported overrides.
+
+3. **Stooq daily price history** (`provider = 'stooq'`)
+   - Ingested by: `python -m data_fetchers.stooq_prices --config config/stock_momentum_free.toml --zip <archive>` or `--symbol <symbol>`
+   - Writes normalized OHLCV rows to `equity_price_bars`.
+   - `adjustment_status` is `unknown` unless explicitly verified.
+   - Bulk ZIP input remains manual for now.
+
+4. **ECB FX rates** (`source = 'ECB'`)
+   - Ingested by: `python -m data_fetchers.ecb_fx --config config/stock_momentum_free.toml`
+   - Writes long-format rows to `fx_rates`.
+
 ### Notes
-- `close` is stored as **adjusted close when available by default** (see `data_fetchers/stock_prices.py` and `data_fetchers/openbb_client.py`).
-- The direct `stock_prices` fetcher is disabled in the central refresh config until you choose explicit symbols.
-- The `factor_etfs` fetcher is enabled by default and writes predefined ETF proxy tickers into this same table (`IWFM.L`, `IWFV.L`, `IWQU.L` by default; `MTUM`, `VLUE`, and `QUAL` for `--set us`).
+- `stock_prices` has been removed from the active schema in favor of `equity_price_bars`.
+- The free stock momentum prototype is not point-in-time, does not reliably include delistings, and must not be treated as final allocation evidence.
 
 ---
 
@@ -256,14 +273,6 @@ Non-standard or derived series used during development/testing.
 
 ### Notes
 - Populated by the same Shiller ingest run that fills `macro_data`; the current central refresh config enables that ingest with a configured Excel URL.
-
----
-
-## `assets_prices`
-Generic “asset price in USD” table.
-
-### Current status
-- Table exists, but there is **no ingestion pipeline implemented** in this repository at the moment.
 
 ---
 

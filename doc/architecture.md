@@ -4,7 +4,7 @@
 
 The `financial_db` project is a personal financial data management system designed to run locally on a laptop. It leverages Docker to host a PostgreSQL database, providing an isolated and consistent environment for data storage and analysis.
 
-The core of the system is a Python-based data ingestion pipeline that fetches financial data from external sources via the OpenBB SDK (plus direct Shiller CAPE downloads) and stores it in the database. Complex financial metrics are then computed directly within the database using SQL views.
+The core of the system is a Python-based data ingestion pipeline that fetches financial data from external sources via the OpenBB SDK, source-specific free-data fetchers, and direct Shiller CAPE downloads, then stores normalized outputs in the database. Complex financial metrics are computed in SQL views or focused analysis modules.
 
 ## High-Level Architecture
 
@@ -44,13 +44,13 @@ These are standalone Python scripts responsible for:
 
 ### 2. Database Layer (`db_utils/`)
 Provides a unified interface for database interactions:
--   **`DatabaseConnection`**: A context manager that handles connection pooling (planned) and transaction management.
+-   **`DatabaseConnection`**: A context manager that handles connection pooling and transaction management.
 -   **Schema Definitions**: Defines the structure of tables and primary keys to ensure data integrity.
 -   **Upsert Logic**: Handles idempotent inserts using `INSERT ... ON CONFLICT DO UPDATE`.
 
 ### 3. Database Schema (`db_utils/db_setup.sql`)
 The database is structured into several normalized tables:
--   `assets_prices`: Historical price data for assets.
+-   `securities`, `listings`, and `equity_price_bars`: normalized equity reference and OHLCV data.
 -   `interest_rates`: Global interest rate data.
 -   `indices`: Market index values.
 -   `macro_data`: General macroeconomic indicators.

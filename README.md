@@ -47,7 +47,7 @@ python -m data_fetchers.refresh_all --fail-fast
 ```
 
 ## Available Data Overview
-The database currently includes factor returns, portfolio returns, stock and commodity prices, Treasury rates, Shiller macro series, oil benchmark series, and Open Asset Pricing metadata. Some sources run in the default refresh workflow, while sources that require explicit parameters stay disabled until configured.
+The database currently includes factor returns, portfolio returns, normalized equity price bars, commodity prices, Treasury rates, Shiller macro series, oil benchmark series, Open Asset Pricing metadata, and stock momentum prototype tables. Some sources run in the default refresh workflow, while sources that require explicit parameters stay disabled until configured.
 
 See [`doc/data_sources.md`](doc/data_sources.md) for the full table-by-table inventory and source catalog.
 
