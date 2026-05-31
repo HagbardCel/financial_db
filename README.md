@@ -20,6 +20,8 @@ Canonical docs root: `doc/`
 -   **Modern Tooling**: Uses `uv` for fast package management.
 
 ## Quick Start
+
+### Devcontainer
 1.  Clone the repository.
 2.  Open in VS Code and reopen in Devcontainer.
     The devcontainer installs core runtime dependencies into the project venv at `/workspaces/financial_db/.venv`.
@@ -27,6 +29,31 @@ Canonical docs root: `doc/`
     Optional sets can be added as needed: `uv sync --group dashboard --group analysis --group dev`
 3.  Initialize the database: `python db_utils/db_setup.py`
 4.  Run a fetcher from the repo root: `python -m data_fetchers.bonds`
+
+### Host Without Devcontainer
+1.  Install Docker or Docker Desktop and [`uv`](https://docs.astral.sh/uv/).
+2.  Configure `.devcontainer/.env` with local database settings and provider secrets.
+    The Makefile reads this file and uses `POSTGRES_HOST=localhost` for host-side Python commands.
+3.  Install dependencies:
+    ```bash
+    uv sync --group dashboard --group analysis --group dev
+    ```
+4.  Start PostgreSQL and initialize the schema:
+    ```bash
+    make db-up
+    make db-init
+    ```
+5.  Run the main refresh workflow:
+    ```bash
+    make refresh
+    ```
+
+Useful local targets:
+```bash
+make dashboard
+make test
+make db-down
+```
 
 ## Refresh All Configured Data
 The canonical refresh workflow is:

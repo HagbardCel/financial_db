@@ -2,14 +2,16 @@
 
 ## Environment Setup
 
-This project is configured to run inside a **Devcontainer**. This ensures a consistent development environment with all dependencies pre-installed.
+This project supports two local development paths:
+- **Devcontainer**: VS Code opens the repository inside the application container and starts PostgreSQL beside it.
+- **Host without devcontainer**: Python commands run on the host, while PostgreSQL runs through the existing Compose service.
 
-### Prerequisites
+### Devcontainer Prerequisites
 -   Docker Desktop (or Docker Engine)
 -   Visual Studio Code
 -   VS Code Dev Containers extension
 
-### Getting Started
+### Devcontainer Getting Started
 1.  Open the project folder in VS Code.
 2.  When prompted, click "Reopen in Container".
 3.  Wait for the container to build and the post-create commands to finish.
@@ -18,6 +20,34 @@ The devcontainer will automatically:
 -   Install Python 3.10+
 -   Install core runtime dependencies using `uv`
 -   Spin up a generic PostgreSQL database container
+
+### Host Prerequisites
+-   Docker Desktop or Docker Engine with Docker Compose
+-   Python compatible with `pyproject.toml`
+-   `uv`
+
+### Host Getting Started
+Run these commands from the repository root:
+
+```bash
+uv sync --group dashboard --group analysis --group dev
+make db-up
+make db-init
+make refresh
+```
+
+Both workflows read `.devcontainer/.env`. The devcontainer uses `POSTGRES_HOST=db` because commands run inside the Compose network. The Makefile overrides `POSTGRES_HOST=localhost` for host-side Python commands because the database port is published to the host.
+
+The Makefile wraps the standard commands:
+
+```bash
+make db-up      # start PostgreSQL
+make db-down    # stop PostgreSQL
+make db-init    # run uv run python db_utils/db_setup.py
+make refresh    # run uv run python -m data_fetchers.refresh_all
+make dashboard  # run uv run streamlit run dashboard/app.py
+make test       # run uv run pytest tests/
+```
 
 ## Package Management
 
@@ -44,20 +74,26 @@ We use `uv` for fast and reliable dependency management.
 
 Database access requires these environment variables:
 `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` (optional: `POSTGRES_HOST`, `POSTGRES_PORT`).
-We keep these in `.devcontainer/.env` (or a local `.env`) and do not commit personal editor settings.
+We keep these in `.devcontainer/.env`. Do not commit local secrets.
 
-Provider secrets follow the same pattern. For normal devcontainer usage, add them to `.devcontainer/.env` so they are available to fetchers started inside the workspace.
+Provider secrets follow the same pattern. Add them to `.devcontainer/.env`.
 
 ### Initialization
 To set up the database schema (create tables):
 ```bash
-python db_utils/db_setup.py
+uv run python db_utils/db_setup.py
+```
+
+Host-side Makefile equivalent:
+
+```bash
+make db-init
 ```
 
 ### Resetting
 To drop all tables and start fresh (WARNING: Data will be lost):
 ```bash
-python db_utils/db_setup.py --reset --yes
+uv run python db_utils/db_setup.py --reset --yes
 ```
 
 ## Running Data Fetchers
@@ -69,24 +105,30 @@ Data fetchers are located in `data_fetchers/` and can be run individually from t
 The canonical operator command is:
 
 ```bash
-python -m data_fetchers.refresh_all
+uv run python -m data_fetchers.refresh_all
+```
+
+Host-side Makefile equivalent:
+
+```bash
+make refresh
 ```
 
 It reads `config/data_refresh.toml`, runs enabled fetchers in config order, and prints a summary of successes, failures, and skipped entries.
 To capture a complete run log, redirect both streams:
 
 ```bash
-python -m data_fetchers.refresh_all >out_test 2>&1
+uv run python -m data_fetchers.refresh_all >out_test 2>&1
 ```
 
 Useful commands:
 
 ```bash
-python -m data_fetchers.refresh_all --list
-python -m data_fetchers.refresh_all --only ken_french aqr
-python -m data_fetchers.refresh_all --skip factor_etfs
-python -m data_fetchers.refresh_all --fail-fast
-python -m data_fetchers.refresh_all --config path/to/custom_refresh.toml
+uv run python -m data_fetchers.refresh_all --list
+uv run python -m data_fetchers.refresh_all --only ken_french aqr
+uv run python -m data_fetchers.refresh_all --skip factor_etfs
+uv run python -m data_fetchers.refresh_all --fail-fast
+uv run python -m data_fetchers.refresh_all --config path/to/custom_refresh.toml
 ```
 
 Config notes:
@@ -219,7 +261,7 @@ OpenBB pulls data via providers; set provider keys via env vars as needed. Optio
 - `OPENBB_COMMODITY_HISTORICAL_PATH` (default: `derivatives.futures.historical`)
 - `OPENBB_FRED_SERIES_PATH` (default: `economy.fred_series`)
 
-For FRED-backed rates and oil spot benchmarks, use `FRED_API_KEY` as the canonical secret name and put it in `.devcontainer/.env`:
+For FRED-backed rates and oil spot benchmarks, use `FRED_API_KEY` as the canonical secret name and put it in the environment file for the workflow you are using:
 
 ```dotenv
 FRED_API_KEY=your_fred_api_key_here
@@ -228,7 +270,8 @@ FRED_API_KEY=your_fred_api_key_here
 Notes:
 - `FRED_API_KEY` is the preferred repo-wide name.
 - `OPENBB_FRED_API_KEY` is still accepted for backward compatibility.
-- A temporary shell override also works, for example `export FRED_API_KEY=...`, but `.devcontainer/.env` is the normal persistent setup for this repo.
+- A temporary shell override also works, for example `export FRED_API_KEY=...`.
+- Use `.devcontainer/.env` for both devcontainer and host-side Makefile runs.
 
 OpenBB dependency footprint: this repo installs the full OpenBB meta-package for now. If dependency weight becomes an issue, revisit slimming providers by switching to `openbb-core` plus the specific provider packages we use.
 
@@ -252,6 +295,12 @@ Make sure the normal database environment variables are available before startin
 Start the dashboard:
 ```bash
 uv run streamlit run dashboard/app.py
+```
+
+Host-side Makefile equivalent:
+
+```bash
+make dashboard
 ```
 
 Streamlit prints the local URL after startup, usually `http://localhost:8501`. In a devcontainer, use the forwarded `8501` port from VS Code if the browser does not open automatically.
