@@ -29,6 +29,10 @@ require-env:
 		echo "Missing $(ENV_FILE). Create it with the local PostgreSQL and provider settings."; \
 		exit 1; \
 	}
+	@test -n "$(DATA_DIR)" || { \
+		echo "DATA_DIR must be set in $(ENV_FILE)"; \
+		exit 1; \
+	}
 
 db-up: require-env
 	$(COMPOSE) up -d db

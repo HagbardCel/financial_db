@@ -27,6 +27,7 @@ services:
   db:
     image: postgres:15
     container_name: financial_data_db
+    env_file: .env
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -36,8 +37,4 @@ services:
     ports:
       - "${POSTGRES_PORT}:5432"
     volumes:
-      - db_data:/var/lib/postgresql/data
-
-volumes:
-  db_data:
-    driver: local
+      - ${DATA_DIR}/db:/var/lib/postgresql/data
