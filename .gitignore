@@ -120,3 +120,9 @@ analyses/risk_weighted_factor_allocation/outputs/*
 !analyses/risk_weighted_factor_allocation/outputs/metrics_common_sample.csv
 !analyses/risk_weighted_factor_allocation/outputs/selected_hyperparameters.csv
 !analyses/risk_weighted_factor_allocation/outputs/transaction_cost_sensitivity.csv
+
+# Codegraph
+.codegraph/
+
+# User inputs/codegraph
+inputs/
