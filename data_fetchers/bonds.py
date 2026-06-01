@@ -26,7 +26,7 @@ DEFAULT_SERIES: Dict[str, str] = {
 }
 DEFAULT_PROVIDER = "fred"
 FRED_SETUP_HINT = (
-    "Set FRED_API_KEY in .devcontainer/.env (preferred) or export it in the shell "
+    "Set FRED_API_KEY in .env (preferred) or export it in the shell "
     "before running the fetcher."
 )
 

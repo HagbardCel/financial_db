@@ -25,7 +25,7 @@ EIA_US_CRUDE_MONTHLY_URL = "https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?f
 DEFAULT_CACHE_DIR = Path("derived") / "oil_prices"
 DEFAULT_OPENBB_PROVIDER = "fred"
 FRED_SETUP_HINT = (
-    "Set FRED_API_KEY in .devcontainer/.env (preferred) or export it in the shell "
+    "Set FRED_API_KEY in .env (preferred) or export it in the shell "
     "before running the fetcher."
 )
 MONTH_COLUMNS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")

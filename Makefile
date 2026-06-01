@@ -1,7 +1,7 @@
 SHELL := /usr/bin/env bash
 
-ENV_FILE := .devcontainer/.env
-COMPOSE_FILE := .devcontainer/docker-compose.yml
+ENV_FILE := .env
+COMPOSE_FILE := compose.yml
 COMPOSE := docker compose --env-file $(ENV_FILE) -f $(COMPOSE_FILE)
 HOST_POSTGRES_HOST := localhost
 
@@ -22,7 +22,7 @@ help:
 		'  make dashboard  Start the Streamlit dashboard' \
 		'  make test       Run the pytest suite' \
 		'' \
-		'DB-backed targets read .devcontainer/.env and use POSTGRES_HOST=localhost on the host.'
+		'DB-backed targets read .env and use POSTGRES_HOST=localhost on the host.'
 
 require-env:
 	@test -f "$(ENV_FILE)" || { \
