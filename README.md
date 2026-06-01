@@ -23,7 +23,7 @@ Canonical docs root: `doc/`
 
 ### Devcontainer
 1.  Clone the repository.
-2.  Set `DATA_DIR` (absolute path) in `.devcontainer/.env` and run `mkdir -p "$DATA_DIR/db"` before first start.
+2.  Set `PROJECT_DATA_DIR` (absolute path) in `.devcontainer/.env` and run `mkdir -p "$PROJECT_DATA_DIR/db"` before first start.
 3.  Open in VS Code and reopen in Devcontainer.
     The devcontainer installs core runtime dependencies into the project venv at `/workspaces/financial_db/.venv`.
     Verify with: `python -c "import pandas, openbb; print('ok')"`
@@ -33,8 +33,8 @@ Canonical docs root: `doc/`
 
 ### Host Without Devcontainer
 1.  Install Docker or Docker Desktop and [`uv`](https://docs.astral.sh/uv/).
-2.  Configure `.devcontainer/.env` with local database settings, provider secrets, and an absolute `DATA_DIR`.
-    PostgreSQL persists under `$DATA_DIR/db`. See [Development Guide](doc/development.md#database-management).
+2.  Configure `.devcontainer/.env` with local database settings, provider secrets, and an absolute `PROJECT_DATA_DIR`.
+    PostgreSQL persists under `$PROJECT_DATA_DIR/db`. See [Development Guide](doc/development.md#database-management).
     The Makefile reads this file and uses `POSTGRES_HOST=localhost` for host-side Python commands.
 3.  Install dependencies:
     ```bash

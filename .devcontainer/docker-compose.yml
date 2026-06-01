@@ -37,4 +37,4 @@ services:
     ports:
       - "${POSTGRES_PORT}:5432"
     volumes:
-      - ${DATA_DIR}/db:/var/lib/postgresql/data
+      - ${PROJECT_DATA_DIR}/db:/var/lib/postgresql/data

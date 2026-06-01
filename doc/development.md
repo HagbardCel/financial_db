@@ -73,30 +73,30 @@ We use `uv` for fast and reliable dependency management.
 ## Database Management
 
 Database access requires these environment variables:
-`POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `DATA_DIR` (optional: `POSTGRES_HOST`, `POSTGRES_PORT`).
-PostgreSQL data files are stored on the host at `$DATA_DIR/db` (bind-mounted into the container at `/var/lib/postgresql/data`).
-Set `DATA_DIR` to an **absolute** path in `.devcontainer/.env` (do not use `~`; Docker Compose does not expand it reliably).
+`POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `PROJECT_DATA_DIR` (optional: `POSTGRES_HOST`, `POSTGRES_PORT`).
+PostgreSQL data files are stored on the host at `$PROJECT_DATA_DIR/db` (bind-mounted into the container at `/var/lib/postgresql/data`).
+Set `PROJECT_DATA_DIR` to an **absolute** path in `.devcontainer/.env` (do not use `~`; Docker Compose does not expand it reliably).
 We keep these in `.devcontainer/.env`. Do not commit local secrets.
 
 Provider secrets follow the same pattern. Add them to `.devcontainer/.env`.
 
 ### First-time database directory
 
-Before starting PostgreSQL for the first time with a new `DATA_DIR`:
+Before starting PostgreSQL for the first time with a new `PROJECT_DATA_DIR`:
 
 ```bash
-mkdir -p "$DATA_DIR/db"
+mkdir -p "$PROJECT_DATA_DIR/db"
 ```
 
 On Linux, if the container fails with permission errors on the data directory, grant ownership to the Postgres user inside the image (UID 999):
 
 ```bash
-sudo chown -R 999:999 "$DATA_DIR/db"
+sudo chown -R 999:999 "$PROJECT_DATA_DIR/db"
 ```
 
 macOS Docker Desktop usually does not require this step.
 
-`make db-down` stops the Compose stack but does **not** remove files under `$DATA_DIR/db`.
+`make db-down` stops the Compose stack but does **not** remove files under `$PROJECT_DATA_DIR/db`.
 
 ### Initialization
 To set up the database schema (create tables):
