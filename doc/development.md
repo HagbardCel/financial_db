@@ -36,7 +36,10 @@ make db-init
 make refresh
 ```
 
-Both workflows read `.devcontainer/.env`. The devcontainer uses `POSTGRES_HOST=db` because commands run inside the Compose network. The Makefile overrides `POSTGRES_HOST=localhost` for host-side Python commands because the database port is published to the host.
+Both workflows read the root `.env`. The devcontainer uses `POSTGRES_HOST=db` because commands run inside the Compose network. The Makefile overrides `POSTGRES_HOST=localhost` for host-side Python commands because the database port is published to the host.
+
+Committed non-secret defaults live in `config/settings.toml`. Refresh orchestration and stable fetcher arguments remain in `config/data_refresh.toml`. For a scheduled host-side refresh, use `make -C /path/to/financial_db refresh` or export the same environment explicitly before invoking Python.
+Direct Python commands that use `db_utils.config` load the root `.env` without overriding exported shell values.
 
 The Makefile wraps the standard commands:
 
@@ -75,10 +78,23 @@ We use `uv` for fast and reliable dependency management.
 Database access requires these environment variables:
 `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `PROJECT_DATA_DIR` (optional: `POSTGRES_HOST`, `POSTGRES_PORT`).
 PostgreSQL data files are stored on the host at `$PROJECT_DATA_DIR/db` (bind-mounted into the container at `/var/lib/postgresql/data`).
-Set `PROJECT_DATA_DIR` to an **absolute** path in `.devcontainer/.env` (do not use `~`; Docker Compose does not expand it reliably).
-We keep these in `.devcontainer/.env`. Do not commit local secrets.
+Create `.env` from `.env.example`, then set `PROJECT_DATA_DIR` to an **absolute** path (do not use `~`; Docker Compose does not expand it reliably).
+Keep local values and secrets in the root `.env`. Do not commit it.
 
-Provider secrets follow the same pattern. Add them to `.devcontainer/.env`.
+Provider secrets follow the same pattern. Add them to `.env`.
+
+For EODHD, set `RAW_DATA_DIR` to an absolute path and add `EODHD_API_TOKEN`. The devcontainer bind-mounts `${RAW_DATA_DIR}` at the same absolute path so host and container commands resolve `${RAW_DATA_DIR}/eodhd` identically.
+
+```bash
+uv run python -m data_fetchers.eodhd download
+uv run python -m data_fetchers.eodhd reconcile-state --apply
+uv run python -m data_fetchers.eodhd refresh
+uv run python -m data_fetchers.eodhd ingest
+```
+
+Bare `download` and `refresh` use the resumable full-archive preset: active and delisted symbol discovery, daily prices, and eligible dividends and splits with a seven-day stale refresh policy. Explicit scope flags keep selective runs available. Raw JSON retention remains opt-in through `--raw-json`.
+
+The ingest command is API-free and is the database rebuild workflow. Back up the parquet archive and `state/eodhd_all_world_snapshot.sqlite3` together.
 
 ### First-time database directory
 
@@ -291,7 +307,7 @@ Notes:
 - `FRED_API_KEY` is the preferred repo-wide name.
 - `OPENBB_FRED_API_KEY` is still accepted for backward compatibility.
 - A temporary shell override also works, for example `export FRED_API_KEY=...`.
-- Use `.devcontainer/.env` for both devcontainer and host-side Makefile runs.
+- Use the root `.env` for both devcontainer and host-side Makefile runs.
 
 OpenBB dependency footprint: this repo installs the full OpenBB meta-package for now. If dependency weight becomes an issue, revisit slimming providers by switching to `openbb-core` plus the specific provider packages we use.
 

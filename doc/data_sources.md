@@ -33,6 +33,11 @@ Not every table stores source provenance the same way:
 | `characteristic_metadata` | Characteristic definitions | Open Asset Pricing `SignalDoc.csv` Google Drive file | Static/reference | `source`, `characteristic_set`, `characteristic` | Included by default |
 | `portfolio_characteristics` | Portfolio-level characteristic time series | Open Asset Pricing-compatible portfolio scores URL supplied by operator | Depends on provided file | `source`, `portfolio_set`, `universe`, `portfolio`, `characteristic`, `date` | Disabled until a real source URL is configured |
 | `indices` | Generic index levels | No pipeline currently implemented | N/A | `id`, `date` | Not populated |
+| `eodhd.*` | EODHD exchange, symbol, daily price, dividend, split, and symbol-change snapshots | EOD Historical Data parquet archive | Snapshot/daily | EODHD symbol and date | Refresh disabled by default; ingest-only rebuild supported |
+
+## EODHD Snapshot Archive
+
+The archive is stored outside the repository at `${RAW_DATA_DIR}/eodhd`. Bare `python -m data_fetchers.eodhd download` and `python -m data_fetchers.eodhd refresh` run the resumable full-archive preset: active and delisted symbols, daily prices, and eligible dividends and splits. `python -m data_fetchers.eodhd ingest` rebuilds PostgreSQL exclusively from parquet and never calls the vendor API. Symbol-change history is additive metadata and does not merge historical price series.
 
 ---
 

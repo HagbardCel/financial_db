@@ -159,6 +159,9 @@ These tables record source-file checksums, row counts, run metadata, and executi
 
 ## Views
 
+### EODHD schema
+`eodhd.exchange_snapshots`, `eodhd.symbol_snapshots`, `eodhd.eod_prices`, `eodhd.dividends`, `eodhd.splits`, and `eodhd.symbol_changes` preserve vendor snapshots loaded from parquet. `eodhd.ingestion_artifacts` records root-relative paths and hashes so unchanged artifacts are skipped. Compatibility views `public.eodhd_stock_prices_raw` and `public.eodhd_stock_prices_adjusted` deterministically prefer active rows when active and delisted files overlap.
+
 ### `shiller_derived_view`
 Defined in `db_utils/db_setup.sql` (mirrors `derived/shiller_cape.sql`). This view computes advanced valuation metrics based on Shiller's data.
 -   **Calculations**:

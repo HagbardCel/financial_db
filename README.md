@@ -23,7 +23,7 @@ Canonical docs root: `doc/`
 
 ### Devcontainer
 1.  Clone the repository.
-2.  Set `PROJECT_DATA_DIR` (absolute path) in `.devcontainer/.env` and run `mkdir -p "$PROJECT_DATA_DIR/db"` before first start.
+2.  Create `.env` from `.env.example`, set `PROJECT_DATA_DIR` to an absolute path, and run `mkdir -p "$PROJECT_DATA_DIR/db"` before first start.
 3.  Open in VS Code and reopen in Devcontainer.
     The devcontainer installs core runtime dependencies into the project venv at `/workspaces/financial_db/.venv`.
     Verify with: `python -c "import pandas, openbb; print('ok')"`
@@ -33,7 +33,7 @@ Canonical docs root: `doc/`
 
 ### Host Without Devcontainer
 1.  Install Docker or Docker Desktop and [`uv`](https://docs.astral.sh/uv/).
-2.  Configure `.devcontainer/.env` with local database settings, provider secrets, and an absolute `PROJECT_DATA_DIR`.
+2.  Create `.env` from `.env.example` and configure local database settings, provider secrets, and an absolute `PROJECT_DATA_DIR`.
     PostgreSQL persists under `$PROJECT_DATA_DIR/db`. See [Development Guide](doc/development.md#database-management).
     The Makefile reads this file and uses `POSTGRES_HOST=localhost` for host-side Python commands.
 3.  Install dependencies:
@@ -56,6 +56,36 @@ make dashboard
 make test
 make db-down
 ```
+
+## EODHD Snapshot Archive
+
+Set `RAW_DATA_DIR` to the parent raw-data directory and `EODHD_API_TOKEN` in `.env`.
+The managed archive remains at `${RAW_DATA_DIR}/eodhd`; it is not stored inside the repository.
+
+```bash
+uv run python -m data_fetchers.eodhd download
+uv run python -m data_fetchers.eodhd reconcile-state
+uv run python -m data_fetchers.eodhd reconcile-state --apply
+uv run python -m data_fetchers.eodhd refresh
+uv run python -m data_fetchers.eodhd ingest
+```
+
+Bare `download` and `refresh` run the resumable full-archive preset: exchange and symbol-change metadata, active and delisted symbols, daily prices, and eligible dividends and splits. Completed per-symbol files refresh after seven days. Pass explicit scope flags for selective runs; add `--raw-json` only when compressed vendor JSON copies are needed.
+
+Back up `${RAW_DATA_DIR}/eodhd` and its `state/eodhd_all_world_snapshot.sqlite3` checkpoint database together.
+
+## Configuration
+
+The project uses layered configuration:
+
+- `.env`: untracked local secrets and machine-specific absolute paths
+- `.env.example`: committed bootstrap template
+- `config/settings.toml`: committed non-secret project defaults
+- `config/data_refresh.toml`: committed refresh orchestration and stable fetcher arguments
+- `compose.yml`: container wiring, including the container-only `POSTGRES_HOST=db` override
+
+Host-side Make targets read `.env` and connect to PostgreSQL through `localhost`. For scheduled local jobs, run `make -C /path/to/financial_db refresh` or explicitly export the same environment before invoking Python.
+Direct Python commands that use the shared configuration helpers also load the root `.env` without overriding exported shell values.
 
 ## Refresh All Configured Data
 The canonical refresh workflow is:
