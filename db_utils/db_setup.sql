@@ -2,6 +2,81 @@
 DROP TABLE IF EXISTS assets_prices;
 DROP TABLE IF EXISTS stock_prices;
 
+CREATE SCHEMA IF NOT EXISTS eodhd;
+
+CREATE TABLE IF NOT EXISTS eodhd.exchange_snapshots (
+    snapshot_date DATE NOT NULL, exchange_code TEXT NOT NULL, name TEXT, country TEXT,
+    currency TEXT, operating_mic TEXT, raw_json JSONB NOT NULL, source_file TEXT NOT NULL,
+    PRIMARY KEY (snapshot_date, exchange_code)
+);
+CREATE TABLE IF NOT EXISTS eodhd.symbol_snapshots (
+    snapshot_date DATE NOT NULL, eodhd_symbol TEXT NOT NULL, exchange_code TEXT NOT NULL,
+    code TEXT, name TEXT, country TEXT, currency TEXT, security_type TEXT, isin TEXT,
+    is_delisted BOOLEAN NOT NULL, request_type_filter TEXT NOT NULL, raw_json JSONB NOT NULL,
+    source_file TEXT NOT NULL,
+    PRIMARY KEY (snapshot_date, eodhd_symbol, is_delisted, request_type_filter)
+);
+CREATE TABLE IF NOT EXISTS eodhd.eod_prices (
+    eodhd_symbol TEXT NOT NULL, exchange_code TEXT NOT NULL, date DATE NOT NULL,
+    open NUMERIC, high NUMERIC, low NUMERIC, close NUMERIC, adjusted_close NUMERIC,
+    volume BIGINT, is_delisted_from_symbol_list BOOLEAN NOT NULL, requested_period TEXT NOT NULL,
+    retrieved_at TIMESTAMPTZ, source_file TEXT NOT NULL,
+    PRIMARY KEY (eodhd_symbol, date, is_delisted_from_symbol_list, requested_period)
+);
+CREATE TABLE IF NOT EXISTS eodhd.dividends (
+    eodhd_symbol TEXT NOT NULL, exchange_code TEXT NOT NULL, date DATE,
+    declaration_date DATE, record_date DATE, payment_date DATE, value NUMERIC,
+    unadjusted_value NUMERIC, currency TEXT, period TEXT,
+    is_delisted_from_symbol_list BOOLEAN NOT NULL, retrieved_at TIMESTAMPTZ,
+    event_hash TEXT NOT NULL, raw_json JSONB NOT NULL, source_file TEXT NOT NULL,
+    PRIMARY KEY (eodhd_symbol, event_hash)
+);
+CREATE TABLE IF NOT EXISTS eodhd.splits (
+    eodhd_symbol TEXT NOT NULL, exchange_code TEXT NOT NULL, date DATE, split TEXT,
+    is_delisted_from_symbol_list BOOLEAN NOT NULL, retrieved_at TIMESTAMPTZ,
+    event_hash TEXT NOT NULL, raw_json JSONB NOT NULL, source_file TEXT NOT NULL,
+    PRIMARY KEY (eodhd_symbol, event_hash)
+);
+CREATE TABLE IF NOT EXISTS eodhd.symbol_changes (
+    exchange_code TEXT NOT NULL, old_symbol TEXT NOT NULL, new_symbol TEXT NOT NULL,
+    company_name TEXT, effective_date DATE NOT NULL, snapshot_date DATE NOT NULL,
+    raw_json JSONB NOT NULL, source_file TEXT NOT NULL,
+    PRIMARY KEY (exchange_code, old_symbol, new_symbol, effective_date)
+);
+CREATE TABLE IF NOT EXISTS eodhd.ingestion_artifacts (
+    parquet_path TEXT PRIMARY KEY, sha256 TEXT NOT NULL, dataset TEXT NOT NULL,
+    row_count BIGINT NOT NULL, ingested_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE OR REPLACE VIEW eodhd.latest_exchanges AS
+SELECT * FROM eodhd.exchange_snapshots
+WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM eodhd.exchange_snapshots);
+
+CREATE OR REPLACE VIEW eodhd.latest_symbols AS
+SELECT * FROM eodhd.symbol_snapshots
+WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM eodhd.symbol_snapshots);
+
+CREATE OR REPLACE VIEW public.eodhd_stock_prices_raw AS
+SELECT eodhd_symbol AS symbol, exchange_code, date, open, high, low, close, volume
+FROM (
+    SELECT p.*, ROW_NUMBER() OVER (
+        PARTITION BY eodhd_symbol, date
+        ORDER BY is_delisted_from_symbol_list ASC, retrieved_at DESC NULLS LAST, source_file
+    ) AS row_number
+    FROM eodhd.eod_prices p
+) ranked WHERE row_number = 1;
+
+CREATE OR REPLACE VIEW public.eodhd_stock_prices_adjusted AS
+SELECT eodhd_symbol AS symbol, exchange_code, date, open, high, low,
+       COALESCE(adjusted_close, close) AS close, volume
+FROM (
+    SELECT p.*, ROW_NUMBER() OVER (
+        PARTITION BY eodhd_symbol, date
+        ORDER BY is_delisted_from_symbol_list ASC, retrieved_at DESC NULLS LAST, source_file
+    ) AS row_number
+    FROM eodhd.eod_prices p
+) ranked WHERE row_number = 1;
+
 CREATE TABLE IF NOT EXISTS interest_rates (
     date DATE NOT NULL,
     region VARCHAR(50) NOT NULL,

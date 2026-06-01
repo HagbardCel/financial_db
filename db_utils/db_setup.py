@@ -7,6 +7,7 @@ from db_utils.config import get_database_config
 
 def reset_database(cursor):
     """Delete all tables in the database and verify that no tables remain."""
+    cursor.execute("DROP SCHEMA IF EXISTS eodhd CASCADE")
     cursor.execute("""
         DO $$ DECLARE
         r RECORD;

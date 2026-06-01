@@ -22,6 +22,10 @@ def test_load_refresh_config_reads_default_config():
     assert [entry.name for entry in entries][:4] == ["bonds", "commodities", "gold_prices", "oil_prices"]
     assert entries[0].module == "data_fetchers.bonds"
     assert entries[0].enabled is True
+    eodhd = next(entry for entry in entries if entry.name == "eodhd_refresh")
+    assert eodhd.enabled is False
+    assert eodhd.module == "data_fetchers.eodhd"
+    assert eodhd.args == ["refresh"]
 
 
 def test_load_refresh_config_rejects_missing_order_target(tmp_path: Path):

@@ -20,6 +20,7 @@ order = [
   "openbb_equity_prices",
   "shiller_cape",
   "open_asset_pricing_portfolio_characteristics",
+  "eodhd_refresh",
 ]
 
 [fetchers.bonds]
@@ -126,3 +127,9 @@ args = [
   "--portfolio-scores-url",
   "https://example.com/portfolio_characteristics.csv",
 ]
+
+[fetchers.eodhd_refresh]
+module = "data_fetchers.eodhd"
+enabled = false
+description = "Resumable EODHD snapshot refresh; requires EODHD_API_TOKEN and RAW_DATA_DIR."
+args = ["refresh"]
