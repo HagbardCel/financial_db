@@ -219,13 +219,21 @@ class FakeSession:
         return next(self.responses)
 
 
+_TEST_CLIENT_API_KW = {
+    "api_base": "https://eodhd.com/api",
+    "symbol_change_start_date": "2022-07-22",
+    "default_provider_cooldown_seconds": 60.25,
+    "max_provider_cooldown_seconds": 120.0,
+}
+
+
 def test_provider_429_retries_after_shared_retry_after_cooldown(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     clock = FakeClock()
     monkeypatch.setattr("data_fetchers.eodhd.downloader.time.monotonic", clock.monotonic)
     monkeypatch.setattr("data_fetchers.eodhd.downloader.time.sleep", clock.sleep)
     state = SQLiteState(tmp_path / "state.sqlite3", root=tmp_path)
     session = FakeSession([FakeResponse(429, headers={"Retry-After": "7"}), FakeResponse(200, payload=[{"ok": True}])])
-    client = RateLimitedEODHDClient("token", state, ApiLimits(), timeout=1, pool_size=1)
+    client = RateLimitedEODHDClient("token", state, ApiLimits(), timeout=1, pool_size=1, **_TEST_CLIENT_API_KW)
     monkeypatch.setattr(client, "session", lambda: session)
 
     assert client.get_json("test") == [{"ok": True}]
@@ -242,7 +250,7 @@ def test_provider_429_uses_bounded_fallback_cooldown_and_stops_after_five_attemp
     monkeypatch.setattr("data_fetchers.eodhd.downloader.time.sleep", clock.sleep)
     state = SQLiteState(tmp_path / "state.sqlite3", root=tmp_path)
     session = FakeSession([FakeResponse(429) for _ in range(5)])
-    client = RateLimitedEODHDClient("token", state, ApiLimits(), timeout=1, pool_size=1)
+    client = RateLimitedEODHDClient("token", state, ApiLimits(), timeout=1, pool_size=1, **_TEST_CLIENT_API_KW)
     monkeypatch.setattr(client, "session", lambda: session)
 
     with pytest.raises(QuotaExceeded, match="after 5 attempts"):
@@ -267,7 +275,7 @@ def test_provider_remaining_header_schedules_shared_cooldown(monkeypatch: pytest
         FakeResponse(200, headers={"X-RateLimit-Remaining": "2"}, payload={"ok": 1}),
         FakeResponse(200, payload={"ok": 2}),
     ])
-    client = RateLimitedEODHDClient("token", state, ApiLimits(), timeout=1, pool_size=1)
+    client = RateLimitedEODHDClient("token", state, ApiLimits(), timeout=1, pool_size=1, **_TEST_CLIENT_API_KW)
     monkeypatch.setattr(client, "session", lambda: session)
 
     assert client.get_json("test") == {"ok": 1}
@@ -279,7 +287,7 @@ def test_provider_remaining_header_schedules_shared_cooldown(monkeypatch: pytest
 def test_local_daily_budget_stops_before_http_request(tmp_path: Path):
     state = SQLiteState(tmp_path / "state.sqlite3", root=tmp_path)
     session = FakeSession([])
-    client = RateLimitedEODHDClient("token", state, ApiLimits(max_api_calls_per_day=0), timeout=1, pool_size=1)
+    client = RateLimitedEODHDClient("token", state, ApiLimits(max_api_calls_per_day=0), timeout=1, pool_size=1, **_TEST_CLIENT_API_KW)
     client.session = lambda: session
 
     with pytest.raises(QuotaExceeded, match="Daily API-call budget"):

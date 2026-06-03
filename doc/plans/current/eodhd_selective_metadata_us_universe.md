@@ -41,7 +41,6 @@ Build the first metadata-only candidate universe:
 
 ```bash
 python -m data_fetchers.eodhd universes build \
-  --config config/eodhd_universes.toml \
   --snapshot-date latest \
   --universe eodhd_us_listed_common_equities_v1
 ```

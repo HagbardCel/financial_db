@@ -13,14 +13,9 @@ from psycopg2 import extras
 from db_utils.config import get_database_config
 from .downloader import resolve_root, sha256_file
 from .reporting import metadata_paths, resolve_snapshot_date
-
-try:
-    import tomllib
-except ModuleNotFoundError:  # pragma: no cover
-    import tomli as tomllib
+from .settings import DEFAULT_CONFIG_PATH, config_for_universe, load_config, load_eodhd_config
 
 
-DEFAULT_CONFIG_PATH = Path("config/eodhd_universes.toml")
 VALID_ISIN = r"^[A-Z]{2}[A-Z0-9]{9}[0-9]$"
 
 
@@ -31,11 +26,6 @@ class UniverseBuild:
     snapshot_date: str
     memberships: pd.DataFrame
     summary: dict[str, Any]
-
-
-def load_config(path: str | Path = DEFAULT_CONFIG_PATH) -> dict[str, Any]:
-    with Path(path).open("rb") as handle:
-        return tomllib.load(handle)
 
 
 def _config_json(config: dict[str, Any]) -> str:
@@ -75,8 +65,9 @@ def build_universe(
     resolved_root = resolve_root(root)
     resolved_date = resolve_snapshot_date(resolved_root, snapshot_date)
     paths = metadata_paths(resolved_root, resolved_date)
-    config = load_config(config_path)
-    definition = config["universes"][universe_name]
+    cfg = load_eodhd_config(config_path)
+    config = {"universes": cfg.universes}
+    definition = config_for_universe(cfg, universe_name)
     symbols = pd.read_parquet(paths[1]).copy()
     symbols["isin_valid"] = symbols["isin"].fillna("").astype(str).str.match(VALID_ISIN)
     symbols["identity_key"] = symbols["full_symbol"]

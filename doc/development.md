@@ -38,7 +38,7 @@ make refresh
 
 Both workflows read the root `.env`. The devcontainer uses `POSTGRES_HOST=db` because commands run inside the Compose network. The Makefile overrides `POSTGRES_HOST=localhost` for host-side Python commands because the database port is published to the host.
 
-Committed non-secret defaults live in `config/settings.toml`. Refresh orchestration and stable fetcher arguments remain in `config/data_refresh.toml`. For a scheduled host-side refresh, use `make -C /path/to/financial_db refresh` or export the same environment explicitly before invoking Python.
+Committed non-secret defaults live in `config/eodhd.toml` for the EODHD fetcher (download, ingest, reports, and universe rules). Refresh orchestration and stable fetcher arguments for other sources remain in `config/data_refresh.toml`. For a scheduled host-side refresh, use `make -C /path/to/financial_db refresh` or export the same environment explicitly before invoking Python.
 Direct Python commands that use `db_utils.config` load the root `.env` without overriding exported shell values.
 
 The Makefile wraps the standard commands:

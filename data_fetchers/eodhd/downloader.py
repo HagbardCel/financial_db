@@ -76,12 +76,9 @@ from requests.adapters import HTTPAdapter
 
 from db_utils.config import get_eodhd_archive_root, load_project_environment
 
-API_BASE = "https://eodhd.com/api"
+from .settings import DEFAULT_CONFIG_PATH, EodhdConfig, load_eodhd_config
+
 UTC = dt.timezone.utc
-DEFAULT_REFRESH_AFTER_DAYS = 7
-DEFAULT_PROVIDER_RATE_LIMIT_COOLDOWN_SECONDS = 60.25
-MAX_PROVIDER_RATE_LIMIT_COOLDOWN_SECONDS = 120.0
-SYMBOL_CHANGE_START_DATE = "2022-07-22"
 FULL_ARCHIVE_SCOPE_OPTIONS = {
     "--confirm-full-plan-download",
     "--exchanges",
@@ -97,20 +94,6 @@ FULL_ARCHIVE_SCOPE_OPTIONS = {
     "--max-symbols",
 }
 
-# Virtual categories documented/used by EODHD around the exchange-symbol-list endpoint.
-# Keep them discoverable by default because the user explicitly does not want categories
-# excluded at the download layer.
-VIRTUAL_ASSET_CATEGORIES = ["EUFUND", "CC", "FOREX", "GBOND", "MONEY"]
-
-CORPORATE_ACTION_ELIGIBLE_TYPES = {
-    "common stock",
-    "preferred stock",
-    "stock",
-    "etf",
-    "fund",
-    "mutual fund",
-}
-SUPPORTED_TYPE_FILTERS = {"common_stock", "preferred_stock", "stock", "etf", "fund"}
 TOKEN_ENV_NAMES = ["EODHD_API_TOKEN", "EODHD_TOKEN", "EOD_HISTORICAL_DATA_API_TOKEN"]
 
 
@@ -451,12 +434,28 @@ class SQLiteState:
 
 
 class RateLimitedEODHDClient:
-    def __init__(self, token: str, state: SQLiteState, limits: ApiLimits, timeout: int, pool_size: int) -> None:
+    def __init__(
+        self,
+        token: str,
+        state: SQLiteState,
+        limits: ApiLimits,
+        timeout: int,
+        pool_size: int,
+        *,
+        api_base: str,
+        symbol_change_start_date: str,
+        default_provider_cooldown_seconds: float,
+        max_provider_cooldown_seconds: float,
+    ) -> None:
         self.token = token
         self.state = state
         self.limits = limits
         self.timeout = timeout
         self.pool_size = pool_size
+        self.api_base = api_base
+        self.symbol_change_start_date = symbol_change_start_date
+        self.default_provider_cooldown_seconds = default_provider_cooldown_seconds
+        self.max_provider_cooldown_seconds = max_provider_cooldown_seconds
         self.rate_lock = threading.RLock()
         self._request_timestamps: list[float] = []
         self._last_request_at = 0.0
@@ -481,18 +480,17 @@ class RateLimitedEODHDClient:
         wake = dt.datetime.combine(tomorrow, dt.time(hour=0, minute=5), tzinfo=UTC)
         time.sleep(max(60.0, (wake - now).total_seconds()))
 
-    @staticmethod
-    def _retry_after_seconds(value: Optional[str]) -> float:
+    def _retry_after_seconds(self, value: Optional[str]) -> float:
         if value:
             with contextlib.suppress(ValueError):
-                return min(MAX_PROVIDER_RATE_LIMIT_COOLDOWN_SECONDS, max(0.0, float(value)))
+                return min(self.max_provider_cooldown_seconds, max(0.0, float(value)))
             with contextlib.suppress(TypeError, ValueError, OverflowError):
                 retry_at = email.utils.parsedate_to_datetime(value)
                 if retry_at.tzinfo is None:
                     retry_at = retry_at.replace(tzinfo=UTC)
                 delay = (retry_at - dt.datetime.now(UTC)).total_seconds()
-                return min(MAX_PROVIDER_RATE_LIMIT_COOLDOWN_SECONDS, max(0.0, delay))
-        return DEFAULT_PROVIDER_RATE_LIMIT_COOLDOWN_SECONDS
+                return min(self.max_provider_cooldown_seconds, max(0.0, delay))
+        return self.default_provider_cooldown_seconds
 
     def schedule_provider_cooldown(self, retry_after: Optional[str] = None) -> float:
         delay = self._retry_after_seconds(retry_after)
@@ -545,7 +543,7 @@ class RateLimitedEODHDClient:
         params = dict(params or {})
         params["api_token"] = self.token
         params["fmt"] = "json"
-        url = f"{API_BASE}/{path.lstrip('/')}"
+        url = f"{self.api_base}/{path.lstrip('/')}"
         last_exc: Optional[Exception] = None
 
         for attempt in range(1, max_attempts + 1):
@@ -660,7 +658,7 @@ class RateLimitedEODHDClient:
         return normalize_list_or_empty(data, full_symbol, "splits")
 
     def get_symbol_changes(self) -> list[dict[str, Any]]:
-        data = self.get_json("symbol-change-history", params={"from": SYMBOL_CHANGE_START_DATE}, api_cost=5)
+        data = self.get_json("symbol-change-history", params={"from": self.symbol_change_start_date}, api_cost=5)
         return normalize_list_or_empty(data, "symbol-change-history", "symbol-changes")
 
 
@@ -853,12 +851,18 @@ def refresh_symbol_changes(client: RateLimitedEODHDClient, root: Path, snapshot_
     )
 
 
-def build_exchange_codes(exchange_df: pd.DataFrame, requested: Optional[list[str]], include_virtual_categories: bool) -> list[str]:
+def build_exchange_codes(
+    exchange_df: pd.DataFrame,
+    requested: Optional[list[str]],
+    include_virtual_categories: bool,
+    *,
+    virtual_asset_categories: tuple[str, ...],
+) -> list[str]:
     codes = sorted(set(str(c).strip() for c in exchange_df.get("code", pd.Series(dtype=str)).dropna()))
     if requested:
         return sorted(set(x.strip().upper() for x in requested))
     if include_virtual_categories:
-        codes = sorted(set(codes).union(VIRTUAL_ASSET_CATEGORIES))
+        codes = sorted(set(codes).union(virtual_asset_categories))
     return codes
 
 
@@ -939,7 +943,12 @@ def build_universe(
     return universe
 
 
-def should_attempt_corporate_actions(row: pd.Series, scope: str) -> bool:
+def should_attempt_corporate_actions(
+    row: pd.Series,
+    scope: str,
+    *,
+    corporate_action_eligible_types: frozenset[str],
+) -> bool:
     if scope == "all":
         return True
     if scope == "none":
@@ -948,7 +957,7 @@ def should_attempt_corporate_actions(row: pd.Series, scope: str) -> bool:
     if exchange_code in {"FOREX", "CC", "GBOND", "MONEY"}:
         return False
     typ = str(row.get("type", "")).strip().lower()
-    return typ in CORPORATE_ACTION_ELIGIBLE_TYPES or typ == ""
+    return typ in corporate_action_eligible_types or typ == ""
 
 
 def dataset_output_path(root: Path, dataset: str, exchange_code: str, full_symbol: str, is_delisted: bool) -> Path:
@@ -1007,10 +1016,16 @@ def plan_work_items(
     force: bool,
     max_symbols: Optional[int],
     corporate_actions_scope: str,
+    corporate_action_eligible_types: frozenset[str],
 ) -> tuple[list[WorkItem], dict[str, int]]:
     rows = universe.drop_duplicates(subset=["exchange_code", "full_symbol", "is_delisted"]).sort_values(["exchange_code", "full_symbol", "is_delisted"])
     if dataset in {"dividends", "splits"}:
-        mask = rows.apply(lambda r: should_attempt_corporate_actions(r, corporate_actions_scope), axis=1)
+        mask = rows.apply(
+            lambda r: should_attempt_corporate_actions(
+                r, corporate_actions_scope, corporate_action_eligible_types=corporate_action_eligible_types
+            ),
+            axis=1,
+        )
         rows = rows[mask]
     if max_symbols is not None:
         rows = rows.head(max_symbols)
@@ -1112,12 +1127,22 @@ def download_dataset_concurrent(
     force: bool,
     raw_json: bool,
     corporate_actions_scope: str,
+    corporate_action_eligible_types: frozenset[str],
     refresh_after_days: Optional[int],
     concurrency: int,
     progress_every: int,
     snapshot_date: str,
 ) -> None:
-    items, plan_stats = plan_work_items(dataset=dataset, universe=universe, state=state, refresh_after_days=refresh_after_days, force=force, max_symbols=max_symbols, corporate_actions_scope=corporate_actions_scope)
+    items, plan_stats = plan_work_items(
+        dataset=dataset,
+        universe=universe,
+        state=state,
+        refresh_after_days=refresh_after_days,
+        force=force,
+        max_symbols=max_symbols,
+        corporate_actions_scope=corporate_actions_scope,
+        corporate_action_eligible_types=corporate_action_eligible_types,
+    )
     logging.info("%s plan: %s", dataset, json.dumps(plan_stats, sort_keys=True))
     if not items:
         return
@@ -1192,10 +1217,28 @@ def download_dataset_concurrent(
     write_counts_snapshot(state, root, snapshot_date, label=f"download_state_counts_{dataset}")
 
 
-def estimate_calls(universe: pd.DataFrame, *, prices: bool, dividends: bool, splits: bool, corporate_actions_scope: str, max_api_calls_per_day: int) -> dict[str, Any]:
+def estimate_calls(
+    universe: pd.DataFrame,
+    *,
+    prices: bool,
+    dividends: bool,
+    splits: bool,
+    corporate_actions_scope: str,
+    corporate_action_eligible_types: frozenset[str],
+    max_api_calls_per_day: int,
+) -> dict[str, Any]:
     deduped = universe.drop_duplicates(subset=["full_symbol", "is_delisted"])
     n_symbols = int(len(deduped))
-    ca_mask = universe.apply(lambda r: should_attempt_corporate_actions(r, corporate_actions_scope), axis=1) if not universe.empty else pd.Series(dtype=bool)
+    ca_mask = (
+        universe.apply(
+            lambda r: should_attempt_corporate_actions(
+                r, corporate_actions_scope, corporate_action_eligible_types=corporate_action_eligible_types
+            ),
+            axis=1,
+        )
+        if not universe.empty
+        else pd.Series(dtype=bool)
+    )
     ca_symbols = int(len(universe[ca_mask].drop_duplicates(subset=["full_symbol", "is_delisted"]))) if not universe.empty else 0
 
     def bundle(p: bool, d: bool, s: bool) -> dict[str, int | None]:
@@ -1238,31 +1281,45 @@ def resolve_root(root: Optional[Path]) -> Path:
     return get_eodhd_archive_root()
 
 
-def apply_full_archive_preset(args: argparse.Namespace, argv: Iterable[str]) -> argparse.Namespace:
+def apply_full_archive_preset(args: argparse.Namespace, argv: Iterable[str], cfg: EodhdConfig) -> argparse.Namespace:
     supplied_options = {str(value).split("=", 1)[0] for value in argv if str(value).startswith("--")}
+    scope = cfg.download.scope
     if supplied_options.isdisjoint(FULL_ARCHIVE_SCOPE_OPTIONS):
-        args.confirm_full_plan_download = True
-        args.include_delisted = True
-        args.download_prices = True
-        args.download_dividends = True
-        args.download_splits = True
+        args.confirm_full_plan_download = scope.confirm_full_plan_download
+        args.include_delisted = scope.include_delisted
+        args.download_prices = scope.download_prices
+        args.download_dividends = scope.download_dividends
+        args.download_splits = scope.download_splits
         args.full_archive_preset = True
     else:
         args.full_archive_preset = False
     return args
 
 
+def _parse_config_path(argv: Iterable[str]) -> Path:
+    pre = argparse.ArgumentParser(add_help=False)
+    pre.add_argument("--config", type=Path, default=DEFAULT_CONFIG_PATH)
+    pre_args, _ = pre.parse_known_args(list(argv))
+    return pre_args.config
+
+
 def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
     raw_args = list(argv) if argv is not None else sys.argv[1:]
+    cfg = load_eodhd_config(_parse_config_path(raw_args))
+    download = cfg.download
+    limits = download.rate_limits
+    scope = download.scope
+
     p = argparse.ArgumentParser(description="Download EODHD All World EOD data with resumable state and bounded concurrency.")
+    p.add_argument("--config", type=Path, default=DEFAULT_CONFIG_PATH)
     p.add_argument("--root", type=Path, default=None)
     p.add_argument("--api-token", default=None)
     p.add_argument("--env-file", type=Path, default=None)
-    p.add_argument("--from", dest="start", default="1900-01-01")
+    p.add_argument("--from", dest="start", default=download.start)
     p.add_argument("--to", dest="end", default=None)
     p.add_argument("--confirm-full-plan-download", action="store_true")
     p.add_argument("--exchanges", nargs="*")
-    p.add_argument("--exclude-virtual-categories", action="store_true")
+    p.add_argument("--exclude-virtual-categories", action="store_true", default=scope.exclude_virtual_categories)
     p.add_argument("--type-filters", nargs="*", default=None)
     p.add_argument("--include-delisted", action="store_true")
     p.add_argument("--reuse-universe", action="store_true")
@@ -1270,35 +1327,45 @@ def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
     p.add_argument("--download-prices", action="store_true")
     p.add_argument("--download-dividends", action="store_true")
     p.add_argument("--download-splits", action="store_true")
-    p.add_argument("--corporate-actions-scope", choices=["eligible", "all", "none"], default="eligible")
+    p.add_argument("--corporate-actions-scope", choices=["eligible", "all", "none"], default=download.corporate_actions_scope)
     p.add_argument("--max-symbols", type=int, default=None)
-    p.add_argument("--refresh-after-days", type=int, default=DEFAULT_REFRESH_AFTER_DAYS, help="Refresh completed items older than N days. Use -1 to skip completed items forever unless --force.")
-    p.add_argument("--force", action="store_true")
-    p.add_argument("--raw-json", action="store_true")
-    p.add_argument("--concurrency", type=int, default=20, help="Bounded worker count for per-symbol downloads. Metadata discovery remains serial.")
-    p.add_argument("--http-timeout", type=int, default=60)
+    p.add_argument(
+        "--refresh-after-days",
+        type=int,
+        default=download.refresh_after_days,
+        help="Refresh completed items older than N days. Use -1 to skip completed items forever unless --force.",
+    )
+    p.add_argument("--force", action="store_true", default=download.force)
+    p.add_argument("--raw-json", action="store_true", default=download.raw_json)
+    p.add_argument("--concurrency", type=int, default=download.concurrency, help="Bounded worker count for per-symbol downloads. Metadata discovery remains serial.")
+    p.add_argument("--http-timeout", type=int, default=download.http_timeout)
     p.add_argument("--connection-pool-size", type=int, default=None)
-    p.add_argument("--progress-every", type=int, default=500)
-    p.add_argument("--max-requests-per-minute", type=int, default=900)
-    p.add_argument("--max-api-calls-per-day", type=int, default=95_000)
-    p.add_argument("--sleep-on-daily-limit", action="store_true")
-    p.add_argument("--min-seconds-between-requests", type=float, default=0.05)
+    p.add_argument("--progress-every", type=int, default=download.progress_every)
+    p.add_argument("--max-requests-per-minute", type=int, default=limits.max_requests_per_minute)
+    p.add_argument("--max-api-calls-per-day", type=int, default=limits.max_api_calls_per_day)
+    p.add_argument("--sleep-on-daily-limit", action="store_true", default=download.sleep_on_daily_limit)
+    p.add_argument("--min-seconds-between-requests", type=float, default=limits.min_seconds_between_requests)
     p.add_argument("--state-db", type=Path, default=None)
-    p.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"])
+    p.add_argument("--log-level", default=download.log_level, choices=["DEBUG", "INFO", "WARNING", "ERROR"])
     args = p.parse_args(raw_args)
-    return apply_full_archive_preset(args, raw_args)
+    args.eodhd_config = cfg
+    return apply_full_archive_preset(args, raw_args, cfg)
 
 
 def main(argv: Optional[Iterable[str]] = None) -> int:
     args = parse_args(argv)
+    cfg: EodhdConfig = args.eodhd_config
+    scope = cfg.download.scope
+    api = cfg.api
+    rate_limits = cfg.download.rate_limits
     logging.basicConfig(level=getattr(logging, args.log_level), format="%(asctime)s %(levelname)s %(message)s")
     if args.full_archive_preset:
         logging.info("No scope-selection arguments supplied; using full archive preset with active and delisted symbols, prices, dividends, and splits.")
 
     if args.type_filters:
-        bad = [x for x in args.type_filters if x not in SUPPORTED_TYPE_FILTERS]
+        bad = [x for x in args.type_filters if x not in scope.supported_type_filters]
         if bad:
-            logging.error("Unsupported type filters: %s. Supported: %s", bad, sorted(SUPPORTED_TYPE_FILTERS))
+            logging.error("Unsupported type filters: %s. Supported: %s", bad, sorted(scope.supported_type_filters))
             return 2
     if not args.confirm_full_plan_download and not args.exchanges and not args.reuse_universe:
         logging.error("Refusing broad discovery without --confirm-full-plan-download, --exchanges, or --reuse-universe.")
@@ -1316,7 +1383,7 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
         logging.error("%s", exc)
         return 2
     root.mkdir(parents=True, exist_ok=True)
-    state = SQLiteState(args.state_db or root / "state" / "eodhd_all_world_snapshot.sqlite3", root=root)
+    state = SQLiteState(args.state_db or root / cfg.paths.state_db, root=root)
     snapshot_date = dt.datetime.now(UTC).date().isoformat()
 
     try:
@@ -1327,6 +1394,10 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
             limits=ApiLimits(max_requests_per_minute=args.max_requests_per_minute, max_api_calls_per_day=args.max_api_calls_per_day, min_seconds_between_requests=args.min_seconds_between_requests, sleep_on_daily_limit=args.sleep_on_daily_limit),
             timeout=args.http_timeout,
             pool_size=pool_size,
+            api_base=api.base_url,
+            symbol_change_start_date=api.symbol_change_start_date,
+            default_provider_cooldown_seconds=rate_limits.provider_rate_limit_cooldown_seconds,
+            max_provider_cooldown_seconds=rate_limits.max_provider_rate_limit_cooldown_seconds,
         )
         refresh_symbol_changes(client, root, snapshot_date)
 
@@ -1342,7 +1413,12 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
             exchange_out = root / "metadata" / "exchanges" / f"snapshot_date={snapshot_date}" / "exchanges.parquet"
             atomic_write_parquet(exchange_df, exchange_out)
             logging.info("Exchange metadata written: %s (%s rows)", exchange_out, len(exchange_df))
-            exchange_codes = build_exchange_codes(exchange_df, requested=args.exchanges, include_virtual_categories=not args.exclude_virtual_categories)
+            exchange_codes = build_exchange_codes(
+                exchange_df,
+                requested=args.exchanges,
+                include_virtual_categories=not args.exclude_virtual_categories,
+                virtual_asset_categories=scope.virtual_asset_categories,
+            )
             universe = build_universe(client, root, exchange_codes, args.type_filters, args.include_delisted, snapshot_date, args.refresh_after_days)
 
         if not any([args.download_prices, args.download_dividends, args.download_splits]):
@@ -1351,7 +1427,15 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
             args.download_dividends = True
             args.download_splits = True
 
-        estimate = estimate_calls(universe, prices=args.download_prices, dividends=args.download_dividends, splits=args.download_splits, corporate_actions_scope=args.corporate_actions_scope, max_api_calls_per_day=args.max_api_calls_per_day)
+        estimate = estimate_calls(
+            universe,
+            prices=args.download_prices,
+            dividends=args.download_dividends,
+            splits=args.download_splits,
+            corporate_actions_scope=args.corporate_actions_scope,
+            corporate_action_eligible_types=scope.corporate_action_eligible_types,
+            max_api_calls_per_day=args.max_api_calls_per_day,
+        )
         estimate_out = root / "metadata" / "estimates" / f"snapshot_date={snapshot_date}" / "all_world_eod_estimate.json"
         estimate_out.parent.mkdir(parents=True, exist_ok=True)
         estimate_out.write_text(json.dumps(estimate, indent=2, sort_keys=True), encoding="utf-8")
@@ -1362,7 +1446,23 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
             logging.info("Stopping before downloads due to --metadata-only")
             return 0
 
-        common = dict(client=client, state=state, root=root, universe=universe, start=args.start, end=args.end, max_symbols=args.max_symbols, force=args.force, raw_json=args.raw_json, corporate_actions_scope=args.corporate_actions_scope, refresh_after_days=args.refresh_after_days, concurrency=args.concurrency, progress_every=args.progress_every, snapshot_date=snapshot_date)
+        common = dict(
+            client=client,
+            state=state,
+            root=root,
+            universe=universe,
+            start=args.start,
+            end=args.end,
+            max_symbols=args.max_symbols,
+            force=args.force,
+            raw_json=args.raw_json,
+            corporate_actions_scope=args.corporate_actions_scope,
+            corporate_action_eligible_types=scope.corporate_action_eligible_types,
+            refresh_after_days=args.refresh_after_days,
+            concurrency=args.concurrency,
+            progress_every=args.progress_every,
+            snapshot_date=snapshot_date,
+        )
         if args.download_prices:
             download_dataset_concurrent(dataset="eod_daily", **common)
         if args.download_dividends:

@@ -12,7 +12,21 @@ from .materialization import materialize_curated
 from .price_quality import build_price_quality_report
 from .reconcile import reconcile_state
 from .reporting import build_metadata_report
+from .settings import DEFAULT_CONFIG_PATH, load_eodhd_config
 from .universes import build_universe, persist_universe_build, write_universe_report
+
+
+def _parse_config_path(argv: list[str]) -> Path:
+    pre = argparse.ArgumentParser(add_help=False)
+    pre.add_argument("--config", type=Path, default=DEFAULT_CONFIG_PATH)
+    pre_args, _ = pre.parse_known_args(argv)
+    return pre_args.config
+
+
+def _add_common_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG_PATH)
+    parser.add_argument("--root", type=Path)
+    parser.add_argument("--env-file", type=Path)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -20,13 +34,14 @@ def main(argv: list[str] | None = None) -> int:
     command = args.pop(0) if args and args[0] in {"download", "refresh", "ingest", "report", "universes", "prices", "reconcile-state"} else "download"
     if command in {"download", "refresh"}:
         return downloader.main(args)
+    config_path = _parse_config_path(args)
+    cfg = load_eodhd_config(config_path)
     parser = argparse.ArgumentParser(prog=f"python -m data_fetchers.eodhd {command}")
-    parser.add_argument("--root", type=Path)
-    parser.add_argument("--env-file", type=Path)
+    _add_common_args(parser)
     if command == "ingest":
-        parser.add_argument("scope", nargs="?", choices=["metadata", "all"], default="metadata")
+        parser.add_argument("scope", nargs="?", choices=["metadata", "all"], default=cfg.ingest.default_scope)
         parser.add_argument("--confirm-all-datasets", action="store_true")
-        parser.add_argument("--batch-rows", type=int, default=10_000)
+        parser.add_argument("--batch-rows", type=int, default=cfg.ingest.batch_rows)
         parsed = parser.parse_args(args)
         load_project_environment(parsed.env_file)
         if parsed.scope == "all" and not parsed.confirm_all_datasets:
@@ -39,8 +54,8 @@ def main(argv: list[str] | None = None) -> int:
         subcommand = args.pop(0) if args and args[0] == "metadata" else None
         if subcommand != "metadata":
             parser.error("report requires the metadata subcommand")
-        parser.add_argument("--snapshot-date", default="latest")
-        parser.add_argument("--output-root", type=Path, default=Path("derived/reports/eodhd/metadata"))
+        parser.add_argument("--snapshot-date", default=cfg.reports.metadata.snapshot_date)
+        parser.add_argument("--output-root", type=Path, default=cfg.reports.metadata.output_root)
         parsed = parser.parse_args(args)
         load_project_environment(parsed.env_file)
         report = build_metadata_report(parsed.root, snapshot_date=parsed.snapshot_date, output_root=parsed.output_root)
@@ -50,16 +65,20 @@ def main(argv: list[str] | None = None) -> int:
         subcommand = args.pop(0) if args and args[0] == "build" else None
         if subcommand != "build":
             parser.error("universes requires the build subcommand")
-        parser.add_argument("--config", type=Path, default=Path("config/eodhd_universes.toml"))
-        parser.add_argument("--snapshot-date", default="latest")
+        parser.add_argument("--snapshot-date", default=cfg.reports.universes.snapshot_date)
         parser.add_argument("--universe", required=True)
-        parser.add_argument("--output-root", type=Path, default=Path("derived/reports/eodhd/universes"))
+        parser.add_argument("--output-root", type=Path, default=cfg.reports.universes.output_root)
         parser.add_argument("--no-db", action="store_true")
         parsed = parser.parse_args(args)
         load_project_environment(parsed.env_file)
-        build = build_universe(parsed.root, universe_name=parsed.universe, snapshot_date=parsed.snapshot_date, config_path=parsed.config)
+        build = build_universe(
+            parsed.root,
+            universe_name=parsed.universe,
+            snapshot_date=parsed.snapshot_date,
+            config_path=parsed.config,
+        )
         output_dir = write_universe_report(build, output_root=parsed.output_root)
-        if not parsed.no_db:
+        if not parsed.no_db and cfg.reports.universes.persist_to_db:
             persist_universe_build(build, config_path=parsed.config)
         print(f"EODHD universe built: build_id={build.build_id} output={output_dir}")
         return 0
@@ -70,21 +89,25 @@ def main(argv: list[str] | None = None) -> int:
         parser.add_argument("--universe", required=True)
         parser.add_argument("--build-id", default="latest")
         parser.add_argument("--memberships-file", type=Path)
-        default_output_root = Path("derived/reports/eodhd/materialization") if subcommand == "materialize-curated" else Path("derived/reports/eodhd/price_quality")
-        parser.add_argument("--output-root", type=Path, default=default_output_root)
         if subcommand == "materialize-curated":
+            parser.add_argument("--output-root", type=Path, default=cfg.reports.materialization.output_root)
             parser.add_argument("--quality-report", type=Path, required=True)
-            parser.add_argument("--allow-partial", action="store_true")
+            parser.add_argument("--allow-partial", action="store_true", default=cfg.reports.materialization.allow_partial)
             parsed = parser.parse_args(args)
             load_project_environment(parsed.env_file)
             summary = materialize_curated(
-                parsed.root, universe_name=parsed.universe, build_id=parsed.build_id,
-                memberships_file=parsed.memberships_file, quality_report=parsed.quality_report,
-                allow_partial=parsed.allow_partial, output_root=parsed.output_root,
+                parsed.root,
+                universe_name=parsed.universe,
+                build_id=parsed.build_id,
+                memberships_file=parsed.memberships_file,
+                quality_report=parsed.quality_report,
+                allow_partial=parsed.allow_partial,
+                output_root=parsed.output_root,
             )
             print(f"EODHD curated prices materialized: build_id={summary['build_id']} bars={summary['bar_count']}")
             return 0
-        parser.add_argument("--workers", type=int, default=8)
+        parser.add_argument("--output-root", type=Path, default=cfg.reports.price_quality.output_root)
+        parser.add_argument("--workers", type=int, default=cfg.reports.price_quality.workers)
         parser.add_argument("--max-symbols", type=int)
         parsed = parser.parse_args(args)
         load_project_environment(parsed.env_file)
@@ -104,7 +127,8 @@ def main(argv: list[str] | None = None) -> int:
     parsed = parser.parse_args(args)
     load_project_environment(parsed.env_file)
     root = downloader.resolve_root(parsed.root)
-    result = reconcile_state(root, state_db=parsed.state_db, apply=parsed.apply)
+    state_db = parsed.state_db or root / cfg.paths.state_db
+    result = reconcile_state(root, state_db=state_db, apply=parsed.apply)
     print(f"EODHD state reconciliation: candidates={result.candidates} verified={result.verified} updated={result.updated} missing={len(result.missing)}")
     for path in result.missing:
         print(f"missing: {path}")

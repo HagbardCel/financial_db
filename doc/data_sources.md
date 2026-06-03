@@ -37,7 +37,7 @@ Not every table stores source provenance the same way:
 
 ## EODHD Snapshot Archive
 
-The archive is stored outside the repository at `${RAW_DATA_DIR}/eodhd`. Bare `python -m data_fetchers.eodhd download` and `python -m data_fetchers.eodhd refresh` run the resumable full-archive preset: exchange reference metadata, active and delisted symbol metadata, daily prices, and eligible dividends and splits. Bare `python -m data_fetchers.eodhd ingest` loads broad metadata only and never calls the vendor API; loading every archived parquet dataset requires `python -m data_fetchers.eodhd ingest all --confirm-all-datasets`. Exchange and symbol snapshots retain the original provider row and expose documented fields as typed columns. Symbol-change history is additive metadata and does not merge historical price series.
+The archive is stored outside the repository at `${RAW_DATA_DIR}/eodhd` (archive subdir configured in `config/eodhd.toml`). Default download, ingest, report, and universe settings also live in `config/eodhd.toml`; CLI flags override those defaults. Bare `python -m data_fetchers.eodhd download` and `python -m data_fetchers.eodhd refresh` run the resumable full-archive preset: exchange reference metadata, active and delisted symbol metadata, daily prices, and eligible dividends and splits. Bare `python -m data_fetchers.eodhd ingest` loads broad metadata only and never calls the vendor API; loading every archived parquet dataset requires `python -m data_fetchers.eodhd ingest all --confirm-all-datasets`. Exchange and symbol snapshots retain the original provider row and expose documented fields as typed columns. Symbol-change history is additive metadata and does not merge historical price series.
 
 ---
 

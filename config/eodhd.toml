@@ -1,0 +1,78 @@
+[paths]
+archive_subdir = "eodhd"
+state_db = "state/eodhd_all_world_snapshot.sqlite3"
+
+[api]
+base_url = "https://eodhd.com/api"
+symbol_change_start_date = "2022-07-22"
+
+[download]
+start = "1900-01-01"
+corporate_actions_scope = "eligible"
+refresh_after_days = 7
+concurrency = 20
+http_timeout = 60
+progress_every = 500
+log_level = "INFO"
+raw_json = false
+force = false
+sleep_on_daily_limit = false
+
+[download.rate_limits]
+max_requests_per_minute = 900
+max_api_calls_per_day = 95000
+min_seconds_between_requests = 0.05
+provider_rate_limit_cooldown_seconds = 60.25
+max_provider_rate_limit_cooldown_seconds = 120.0
+
+[download.scope]
+confirm_full_plan_download = true
+include_delisted = true
+download_prices = true
+download_dividends = true
+download_splits = true
+exclude_virtual_categories = false
+virtual_asset_categories = ["EUFUND", "CC", "FOREX", "GBOND", "MONEY"]
+corporate_action_eligible_types = [
+  "common stock",
+  "preferred stock",
+  "stock",
+  "etf",
+  "fund",
+  "mutual fund",
+]
+supported_type_filters = ["common_stock", "preferred_stock", "stock", "etf", "fund"]
+
+[ingest]
+default_scope = "metadata"
+batch_rows = 10000
+
+[reports.metadata]
+snapshot_date = "latest"
+output_root = "derived/reports/eodhd/metadata"
+
+[reports.universes]
+snapshot_date = "latest"
+output_root = "derived/reports/eodhd/universes"
+persist_to_db = true
+
+[reports.price_quality]
+build_id = "latest"
+workers = 8
+output_root = "derived/reports/eodhd/price_quality"
+
+[reports.materialization]
+build_id = "latest"
+output_root = "derived/reports/eodhd/materialization"
+allow_partial = false
+
+[universes.eodhd_us_listed_common_equities_v1]
+description = "US listed common-equity metadata candidates; excludes OTC venues and explicit ADR-like names."
+include_exchange_codes = ["US"]
+include_instrument_types = ["Common Stock"]
+allow_provider_venues = ["NASDAQ", "NYSE", "NYSE MKT", "AMEX", "BATS"]
+exclude_provider_venues = [
+  "PINK", "OTCGREY", "OTCQB", "OTCCE", "OTCMKTS", "OTCQX", "OTCBB", "OTCPK", "OTC",
+]
+provider_venue_preference = ["NYSE", "NASDAQ", "NYSE MKT", "AMEX", "BATS"]
+adr_name_regex = "(?i)\\b(?:ADR|ADS|American Depositary|Depositary Receipt)\\b"

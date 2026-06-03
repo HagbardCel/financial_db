@@ -25,11 +25,19 @@ def test_load_project_settings_rejects_invalid_archive_subdir(tmp_path: Path, ar
         load_project_settings(_write_settings(tmp_path / "settings.toml", archive_subdir))
 
 
+def _write_eodhd_config(path: Path, archive_subdir: str) -> Path:
+    path.write_text(
+        f'[paths]\narchive_subdir = "{archive_subdir}"\nstate_db = "state/eodhd_all_world_snapshot.sqlite3"\n',
+        encoding="utf-8",
+    )
+    return path
+
+
 def test_get_eodhd_archive_root_uses_raw_data_dir_and_config(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     monkeypatch.setenv("RAW_DATA_DIR", str(tmp_path / "raw"))
-    settings_path = _write_settings(tmp_path / "settings.toml", "eodhd")
+    eodhd_config_path = _write_eodhd_config(tmp_path / "eodhd.toml", "vendor/eodhd")
 
-    assert get_eodhd_archive_root(settings_path) == tmp_path / "raw/eodhd"
+    assert get_eodhd_archive_root(eodhd_config_path) == tmp_path / "raw/vendor/eodhd"
 
 
 def test_get_eodhd_archive_root_requires_raw_data_dir(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):

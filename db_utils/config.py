@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -15,6 +16,7 @@ except ModuleNotFoundError:  # pragma: no cover
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_SETTINGS_PATH = PROJECT_ROOT / "config" / "settings.toml"
+DEFAULT_EODHD_CONFIG_PATH = PROJECT_ROOT / "config" / "eodhd.toml"
 
 
 def load_project_environment(env_file: str | Path | None = None) -> None:
@@ -55,13 +57,33 @@ def load_project_settings(path: str | Path = DEFAULT_SETTINGS_PATH) -> ProjectSe
     )
 
 
-def get_eodhd_archive_root(settings_path: str | Path = DEFAULT_SETTINGS_PATH) -> Path:
+def _eodhd_archive_subdir(eodhd_config_path: Path = DEFAULT_EODHD_CONFIG_PATH) -> Path:
+    with eodhd_config_path.open("rb") as handle:
+        config = tomllib.load(handle)
+    paths = config.get("paths", {})
+    if not isinstance(paths, dict):
+        raise ValueError("EODHD config must define [paths] as a table.")
+    return _relative_subdir(paths.get("archive_subdir", "eodhd"), "paths.archive_subdir")
+
+
+def get_eodhd_archive_root(
+    eodhd_config_path: str | Path = DEFAULT_EODHD_CONFIG_PATH,
+    *,
+    settings_path: str | Path = DEFAULT_SETTINGS_PATH,
+) -> Path:
     load_project_environment()
     raw_data_dir = os.getenv("RAW_DATA_DIR")
     if not raw_data_dir:
         raise ValueError("Missing EODHD root: pass --root or set RAW_DATA_DIR.")
-    settings = load_project_settings(settings_path)
-    return Path(raw_data_dir).expanduser() / settings.eodhd.archive_subdir
+    settings_file = Path(settings_path)
+    if settings_file.exists():
+        with settings_file.open("rb") as handle:
+            legacy = tomllib.load(handle).get("eodhd")
+        if isinstance(legacy, dict) and legacy.get("archive_subdir"):
+            logging.warning(
+                "config/settings.toml [eodhd] is deprecated; use paths.archive_subdir in config/eodhd.toml instead."
+            )
+    return Path(raw_data_dir).expanduser() / _eodhd_archive_subdir(Path(eodhd_config_path))
 
 
 def get_database_config() -> Dict[str, str]:

@@ -1,2 +1,1 @@
-[eodhd]
-archive_subdir = "eodhd"
+# Project-wide settings. EODHD archive paths live in config/eodhd.toml ([paths]).
