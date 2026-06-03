@@ -111,6 +111,7 @@ derived/ken_french/
 derived/ken_french_portfolios/
 derived/oil_prices/
 derived/stock_momentum/raw/
+derived/reports/eodhd/
 out_test
 
 # Risk-weighted allocation analysis artifacts

@@ -1,0 +1,10 @@
+[universes.eodhd_us_listed_common_equities_v1]
+description = "US listed common-equity metadata candidates; excludes OTC venues and explicit ADR-like names."
+include_exchange_codes = ["US"]
+include_instrument_types = ["Common Stock"]
+allow_provider_venues = ["NASDAQ", "NYSE", "NYSE MKT", "AMEX", "BATS"]
+exclude_provider_venues = [
+  "PINK", "OTCGREY", "OTCQB", "OTCCE", "OTCMKTS", "OTCQX", "OTCBB", "OTCPK", "OTC",
+]
+provider_venue_preference = ["NYSE", "NASDAQ", "NYSE MKT", "AMEX", "BATS"]
+adr_name_regex = "(?i)\\b(?:ADR|ADS|American Depositary|Depositary Receipt)\\b"

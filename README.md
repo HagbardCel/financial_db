@@ -68,9 +68,12 @@ uv run python -m data_fetchers.eodhd reconcile-state
 uv run python -m data_fetchers.eodhd reconcile-state --apply
 uv run python -m data_fetchers.eodhd refresh
 uv run python -m data_fetchers.eodhd ingest
+uv run python -m data_fetchers.eodhd report metadata --snapshot-date latest
+uv run python -m data_fetchers.eodhd universes build --universe eodhd_us_listed_common_equities_v1
 ```
 
 Bare `download` and `refresh` run the resumable full-archive preset: exchange and symbol-change metadata, active and delisted symbols, daily prices, and eligible dividends and splits. Completed per-symbol files refresh after seven days. Pass explicit scope flags for selective runs; add `--raw-json` only when compressed vendor JSON copies are needed.
+Bare `ingest` loads metadata only. Loading every archived parquet dataset into PostgreSQL requires the explicit `ingest all --confirm-all-datasets` command.
 
 Back up `${RAW_DATA_DIR}/eodhd` and its `state/eodhd_all_world_snapshot.sqlite3` checkpoint database together.
 

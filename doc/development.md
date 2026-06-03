@@ -90,11 +90,13 @@ uv run python -m data_fetchers.eodhd download
 uv run python -m data_fetchers.eodhd reconcile-state --apply
 uv run python -m data_fetchers.eodhd refresh
 uv run python -m data_fetchers.eodhd ingest
+uv run python -m data_fetchers.eodhd report metadata --snapshot-date latest
+uv run python -m data_fetchers.eodhd universes build --universe eodhd_us_listed_common_equities_v1
 ```
 
 Bare `download` and `refresh` use the resumable full-archive preset: active and delisted symbol discovery, daily prices, and eligible dividends and splits with a seven-day stale refresh policy. Explicit scope flags keep selective runs available. Raw JSON retention remains opt-in through `--raw-json`.
 
-The ingest command is API-free and is the database rebuild workflow. Back up the parquet archive and `state/eodhd_all_world_snapshot.sqlite3` together.
+The ingest command is API-free and metadata-only by default. Use `ingest all --confirm-all-datasets` only when deliberately loading the full parquet archive into PostgreSQL. Back up the parquet archive and `state/eodhd_all_world_snapshot.sqlite3` together.
 
 ### First-time database directory
 

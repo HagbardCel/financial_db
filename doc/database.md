@@ -160,7 +160,7 @@ These tables record source-file checksums, row counts, run metadata, and executi
 ## Views
 
 ### EODHD schema
-`eodhd.exchange_snapshots`, `eodhd.symbol_snapshots`, `eodhd.eod_prices`, `eodhd.dividends`, `eodhd.splits`, and `eodhd.symbol_changes` preserve vendor snapshots loaded from parquet. `eodhd.ingestion_artifacts` records root-relative paths and hashes so unchanged artifacts are skipped. Compatibility views `public.eodhd_stock_prices_raw` and `public.eodhd_stock_prices_adjusted` deterministically prefer active rows when active and delisted files overlap.
+`eodhd.exchange_snapshots`, `eodhd.symbol_snapshots`, `eodhd.eod_prices`, `eodhd.dividends`, `eodhd.splits`, and `eodhd.symbol_changes` preserve vendor snapshots loaded from parquet. Exchange and symbol tables expose the documented reference fields as typed columns and retain the original provider row in `raw_json`; `eodhd.latest_symbols_with_exchange_metadata` joins the latest symbol snapshot to exchange names, MICs, currencies, and country codes. `eodhd.universe_definitions`, `eodhd.universe_builds`, and `eodhd.universe_memberships` record deterministic metadata-only candidate-universe decisions; `eodhd.latest_universe_memberships` exposes the latest build. `eodhd.ingestion_artifacts` records root-relative paths, hashes, and loader versions so unchanged artifacts are skipped unless a loader upgrade requires a backfill. Compatibility views `public.eodhd_stock_prices_raw` and `public.eodhd_stock_prices_adjusted` deterministically prefer active rows when active and delisted files overlap.
 
 ### `shiller_derived_view`
 Defined in `db_utils/db_setup.sql` (mirrors `derived/shiller_cape.sql`). This view computes advanced valuation metrics based on Shiller's data.

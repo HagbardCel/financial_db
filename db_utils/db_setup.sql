@@ -6,12 +6,14 @@ CREATE SCHEMA IF NOT EXISTS eodhd;
 
 CREATE TABLE IF NOT EXISTS eodhd.exchange_snapshots (
     snapshot_date DATE NOT NULL, exchange_code TEXT NOT NULL, name TEXT, country TEXT,
-    currency TEXT, operating_mic TEXT, raw_json JSONB NOT NULL, source_file TEXT NOT NULL,
+    currency TEXT, operating_mic TEXT, country_iso2 TEXT, country_iso3 TEXT,
+    raw_json JSONB NOT NULL, source_file TEXT NOT NULL,
     PRIMARY KEY (snapshot_date, exchange_code)
 );
 CREATE TABLE IF NOT EXISTS eodhd.symbol_snapshots (
     snapshot_date DATE NOT NULL, eodhd_symbol TEXT NOT NULL, exchange_code TEXT NOT NULL,
-    code TEXT, name TEXT, country TEXT, currency TEXT, security_type TEXT, isin TEXT,
+    provider_exchange_code TEXT, code TEXT, name TEXT, country TEXT, currency TEXT,
+    security_type TEXT, isin TEXT,
     is_delisted BOOLEAN NOT NULL, request_type_filter TEXT NOT NULL, raw_json JSONB NOT NULL,
     source_file TEXT NOT NULL,
     PRIMARY KEY (snapshot_date, eodhd_symbol, is_delisted, request_type_filter)
@@ -45,8 +47,43 @@ CREATE TABLE IF NOT EXISTS eodhd.symbol_changes (
 );
 CREATE TABLE IF NOT EXISTS eodhd.ingestion_artifacts (
     parquet_path TEXT PRIMARY KEY, sha256 TEXT NOT NULL, dataset TEXT NOT NULL,
-    row_count BIGINT NOT NULL, ingested_at TIMESTAMPTZ NOT NULL
+    row_count BIGINT NOT NULL, loader_version TEXT NOT NULL DEFAULT 'legacy',
+    ingested_at TIMESTAMPTZ NOT NULL
 );
+CREATE TABLE IF NOT EXISTS eodhd.universe_definitions (
+    universe_name TEXT PRIMARY KEY, description TEXT, config_json JSONB NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL
+);
+CREATE TABLE IF NOT EXISTS eodhd.universe_builds (
+    build_id TEXT PRIMARY KEY,
+    universe_name TEXT NOT NULL REFERENCES eodhd.universe_definitions(universe_name),
+    snapshot_date DATE NOT NULL, config_sha256 TEXT NOT NULL, summary_json JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL
+);
+CREATE TABLE IF NOT EXISTS eodhd.universe_memberships (
+    build_id TEXT NOT NULL REFERENCES eodhd.universe_builds(build_id),
+    eodhd_symbol TEXT NOT NULL, exchange_code TEXT NOT NULL, provider_exchange_code TEXT,
+    isin TEXT, isin_valid BOOLEAN NOT NULL, identity_key TEXT NOT NULL, name TEXT,
+    security_type TEXT, currency TEXT, is_delisted BOOLEAN NOT NULL,
+    membership_status TEXT NOT NULL, selection_reason TEXT,
+    PRIMARY KEY (build_id, eodhd_symbol, is_delisted)
+);
+CREATE TABLE IF NOT EXISTS eodhd.curated_materialization_runs (
+    run_id TEXT PRIMARY KEY, build_id TEXT NOT NULL, universe_name TEXT NOT NULL,
+    quality_report_sha256 TEXT, status TEXT NOT NULL, summary_json JSONB NOT NULL,
+    started_at TIMESTAMPTZ NOT NULL, finished_at TIMESTAMPTZ
+);
+CREATE TABLE IF NOT EXISTS eodhd.curated_price_metrics (
+    provider_symbol TEXT NOT NULL, date DATE NOT NULL, raw_close NUMERIC,
+    volume NUMERIC, dollar_volume NUMERIC, adjustment_factor NUMERIC, source_file TEXT,
+    PRIMARY KEY (provider_symbol, date)
+);
+ALTER TABLE eodhd.curated_price_metrics ADD COLUMN IF NOT EXISTS adjustment_factor NUMERIC;
+
+ALTER TABLE eodhd.exchange_snapshots ADD COLUMN IF NOT EXISTS country_iso2 TEXT;
+ALTER TABLE eodhd.exchange_snapshots ADD COLUMN IF NOT EXISTS country_iso3 TEXT;
+ALTER TABLE eodhd.symbol_snapshots ADD COLUMN IF NOT EXISTS provider_exchange_code TEXT;
+ALTER TABLE eodhd.ingestion_artifacts ADD COLUMN IF NOT EXISTS loader_version TEXT NOT NULL DEFAULT 'legacy';
 
 CREATE OR REPLACE VIEW eodhd.latest_exchanges AS
 SELECT * FROM eodhd.exchange_snapshots
@@ -55,6 +92,26 @@ WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM eodhd.exchange_snapshots);
 CREATE OR REPLACE VIEW eodhd.latest_symbols AS
 SELECT * FROM eodhd.symbol_snapshots
 WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM eodhd.symbol_snapshots);
+
+CREATE OR REPLACE VIEW eodhd.latest_symbols_with_exchange_metadata AS
+SELECT s.*,
+       e.name AS exchange_name,
+       e.country AS exchange_country,
+       e.currency AS exchange_currency,
+       e.operating_mic AS exchange_operating_mic,
+       e.country_iso2 AS exchange_country_iso2,
+       e.country_iso3 AS exchange_country_iso3
+FROM eodhd.latest_symbols s
+LEFT JOIN eodhd.latest_exchanges e ON e.exchange_code = s.exchange_code;
+
+CREATE OR REPLACE VIEW eodhd.latest_universe_memberships AS
+SELECT m.*
+FROM eodhd.universe_memberships m
+JOIN (
+    SELECT DISTINCT ON (universe_name) build_id, universe_name
+    FROM eodhd.universe_builds
+    ORDER BY universe_name, created_at DESC, build_id DESC
+) latest ON latest.build_id = m.build_id;
 
 CREATE OR REPLACE VIEW public.eodhd_stock_prices_raw AS
 SELECT eodhd_symbol AS symbol, exchange_code, date, open, high, low, close, volume
@@ -288,6 +345,7 @@ CREATE TABLE IF NOT EXISTS fx_rates (
 );
 
 CREATE TABLE IF NOT EXISTS equity_prices_eur (
+    profile TEXT NOT NULL DEFAULT 'free_prototype',
     security_id TEXT NOT NULL,
     listing_id TEXT NOT NULL,
     provider TEXT NOT NULL,
@@ -296,18 +354,37 @@ CREATE TABLE IF NOT EXISTS equity_prices_eur (
     price_local NUMERIC(20, 6),
     currency TEXT NOT NULL,
     units_per_eur NUMERIC(20, 8),
+    fx_date DATE,
     price_eur NUMERIC(20, 6),
     is_fx_forward_filled BOOLEAN NOT NULL,
     source_price_file TEXT,
     source_fx_file TEXT,
-    PRIMARY KEY (security_id, listing_id, provider, date)
+    PRIMARY KEY (profile, security_id, listing_id, provider, date)
 );
+
+ALTER TABLE equity_prices_eur ADD COLUMN IF NOT EXISTS profile TEXT NOT NULL DEFAULT 'free_prototype';
+ALTER TABLE equity_prices_eur ADD COLUMN IF NOT EXISTS fx_date DATE;
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conrelid = 'equity_prices_eur'::regclass
+          AND conname = 'equity_prices_eur_pkey'
+          AND pg_get_constraintdef(oid) NOT LIKE '%profile%'
+    ) THEN
+        ALTER TABLE equity_prices_eur DROP CONSTRAINT equity_prices_eur_pkey;
+        ALTER TABLE equity_prices_eur ADD PRIMARY KEY (profile, security_id, listing_id, provider, date);
+    END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_equity_prices_eur_date
     ON equity_prices_eur (date);
 
 CREATE TABLE IF NOT EXISTS equity_eligibility (
+    profile TEXT NOT NULL DEFAULT 'free_prototype',
+    provider TEXT NOT NULL DEFAULT 'unknown',
     security_id TEXT NOT NULL,
+    listing_id TEXT,
     date DATE NOT NULL,
     eligible_price_available BOOLEAN NOT NULL,
     eligible_min_history BOOLEAN NOT NULL,
@@ -315,10 +392,41 @@ CREATE TABLE IF NOT EXISTS equity_eligibility (
     eligible_missingness BOOLEAN NOT NULL,
     eligible_security_type BOOLEAN NOT NULL,
     eligible_current_tradable_proxy BOOLEAN NOT NULL,
+    eligible_liquidity BOOLEAN NOT NULL DEFAULT TRUE,
+    trailing_session_count INTEGER,
+    trailing_missing_price_ratio NUMERIC,
+    trailing_median_dollar_volume NUMERIC,
+    stale_price_days INTEGER,
+    eligibility_basis TEXT NOT NULL DEFAULT 'legacy',
     eligible_final BOOLEAN NOT NULL,
     ineligibility_reason TEXT,
-    PRIMARY KEY (security_id, date)
+    PRIMARY KEY (profile, security_id, date)
 );
+
+ALTER TABLE equity_eligibility ADD COLUMN IF NOT EXISTS profile TEXT NOT NULL DEFAULT 'free_prototype';
+ALTER TABLE equity_eligibility ADD COLUMN IF NOT EXISTS provider TEXT NOT NULL DEFAULT 'unknown';
+ALTER TABLE equity_eligibility ADD COLUMN IF NOT EXISTS listing_id TEXT;
+ALTER TABLE equity_eligibility ADD COLUMN IF NOT EXISTS eligible_liquidity BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE equity_eligibility ADD COLUMN IF NOT EXISTS trailing_session_count INTEGER;
+ALTER TABLE equity_eligibility ADD COLUMN IF NOT EXISTS trailing_missing_price_ratio NUMERIC;
+ALTER TABLE equity_eligibility ADD COLUMN IF NOT EXISTS trailing_median_dollar_volume NUMERIC;
+ALTER TABLE equity_eligibility ADD COLUMN IF NOT EXISTS stale_price_days INTEGER;
+ALTER TABLE equity_eligibility ADD COLUMN IF NOT EXISTS eligibility_basis TEXT NOT NULL DEFAULT 'legacy';
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conrelid = 'equity_eligibility'::regclass
+          AND conname = 'equity_eligibility_pkey'
+          AND pg_get_constraintdef(oid) NOT LIKE '%profile%'
+    ) THEN
+        ALTER TABLE equity_eligibility DROP CONSTRAINT equity_eligibility_pkey;
+        ALTER TABLE equity_eligibility ADD PRIMARY KEY (profile, security_id, date);
+    END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_equity_eligibility_profile_date
+    ON equity_eligibility (profile, date);
 
 CREATE TABLE IF NOT EXISTS stock_momentum_panels (
     strategy_family TEXT NOT NULL,

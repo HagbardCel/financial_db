@@ -54,6 +54,7 @@ import argparse
 import contextlib
 import dataclasses
 import datetime as dt
+import email.utils
 import gzip
 import hashlib
 import json
@@ -78,6 +79,8 @@ from db_utils.config import get_eodhd_archive_root, load_project_environment
 API_BASE = "https://eodhd.com/api"
 UTC = dt.timezone.utc
 DEFAULT_REFRESH_AFTER_DAYS = 7
+DEFAULT_PROVIDER_RATE_LIMIT_COOLDOWN_SECONDS = 60.25
+MAX_PROVIDER_RATE_LIMIT_COOLDOWN_SECONDS = 120.0
 SYMBOL_CHANGE_START_DATE = "2022-07-22"
 FULL_ARCHIVE_SCOPE_OPTIONS = {
     "--confirm-full-plan-download",
@@ -197,7 +200,7 @@ def resolve_api_token(cli_token: Optional[str], env_file: Optional[Path]) -> tup
 class ApiLimits:
     max_requests_per_minute: int = 900
     max_api_calls_per_day: int = 95_000
-    min_seconds_between_requests: float = 0.0
+    min_seconds_between_requests: float = 0.05
     sleep_on_daily_limit: bool = False
 
 
@@ -457,6 +460,7 @@ class RateLimitedEODHDClient:
         self.rate_lock = threading.RLock()
         self._request_timestamps: list[float] = []
         self._last_request_at = 0.0
+        self._provider_cooldown_until = 0.0
         self._local = threading.local()
 
     def session(self) -> requests.Session:
@@ -477,6 +481,25 @@ class RateLimitedEODHDClient:
         wake = dt.datetime.combine(tomorrow, dt.time(hour=0, minute=5), tzinfo=UTC)
         time.sleep(max(60.0, (wake - now).total_seconds()))
 
+    @staticmethod
+    def _retry_after_seconds(value: Optional[str]) -> float:
+        if value:
+            with contextlib.suppress(ValueError):
+                return min(MAX_PROVIDER_RATE_LIMIT_COOLDOWN_SECONDS, max(0.0, float(value)))
+            with contextlib.suppress(TypeError, ValueError, OverflowError):
+                retry_at = email.utils.parsedate_to_datetime(value)
+                if retry_at.tzinfo is None:
+                    retry_at = retry_at.replace(tzinfo=UTC)
+                delay = (retry_at - dt.datetime.now(UTC)).total_seconds()
+                return min(MAX_PROVIDER_RATE_LIMIT_COOLDOWN_SECONDS, max(0.0, delay))
+        return DEFAULT_PROVIDER_RATE_LIMIT_COOLDOWN_SECONDS
+
+    def schedule_provider_cooldown(self, retry_after: Optional[str] = None) -> float:
+        delay = self._retry_after_seconds(retry_after)
+        with self.rate_lock:
+            self._provider_cooldown_until = max(self._provider_cooldown_until, time.monotonic() + delay)
+        return delay
+
     def acquire_request_slot(self, api_cost: int) -> None:
         with self.rate_lock:
             calls_today, _ = self.state.get_today_usage()
@@ -491,6 +514,12 @@ class RateLimitedEODHDClient:
                     raise QuotaExceeded(msg)
 
             now = time.monotonic()
+            cooldown_remaining = self._provider_cooldown_until - now
+            if cooldown_remaining > 0:
+                logging.debug("Provider cooldown active; sleeping %.2fs", cooldown_remaining)
+                time.sleep(cooldown_remaining)
+                now = time.monotonic()
+
             cutoff = now - 60.0
             self._request_timestamps = [t for t in self._request_timestamps if t >= cutoff]
             if len(self._request_timestamps) >= self.limits.max_requests_per_minute:
@@ -530,12 +559,18 @@ class RateLimitedEODHDClient:
                 if remaining is not None:
                     with contextlib.suppress(ValueError):
                         if int(remaining) <= 2:
-                            logging.info("Provider minute remaining near zero; sleeping 60s")
-                            time.sleep(60)
+                            cooldown_s = self.schedule_provider_cooldown(response.headers.get("Retry-After"))
+                            logging.info("Provider minute remaining near zero; scheduling shared %.2fs cooldown", cooldown_s)
 
                 if response.status_code == 429:
-                    self.state.log_event("WARNING", "provider_quota_or_rate_limit", {"status_code": 429, "url": safe_url, "body_preview": body_preview})
-                    raise QuotaExceeded(f"HTTP 429 provider quota/rate limit for {safe_url}: {body_preview!r}")
+                    cooldown_s = self.schedule_provider_cooldown(response.headers.get("Retry-After"))
+                    payload = {"status_code": 429, "url": safe_url, "body_preview": body_preview, "attempt": attempt, "max_attempts": max_attempts, "cooldown_seconds": cooldown_s}
+                    if attempt == max_attempts:
+                        self.state.log_event("WARNING", "provider_quota_or_rate_limit", payload)
+                        raise QuotaExceeded(f"HTTP 429 provider quota/rate limit after {max_attempts} attempts for {safe_url}: {body_preview!r}")
+                    self.state.log_event("WARNING", "provider_rate_limit_retry", payload)
+                    logging.warning("HTTP 429 for %s; scheduling shared %.2fs cooldown before retry %s/%s", safe_url, cooldown_s, attempt + 1, max_attempts)
+                    continue
                 if response.status_code in {401, 402, 403}:
                     if looks_like_quota_error(body_preview):
                         self.state.log_event("WARNING", "provider_quota_exceeded", {"status_code": response.status_code, "url": safe_url})
@@ -651,6 +686,14 @@ def camel_to_snake(name: str) -> str:
     return s2.replace(" ", "_").replace("-", "_").lower()
 
 
+def provider_payload_json(row: dict[str, Any]) -> str:
+    return json.dumps(row, ensure_ascii=False, default=str, sort_keys=True, separators=(",", ":"))
+
+
+def rows_with_provider_payload(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [{**row, "provider_payload_json": provider_payload_json(row)} for row in rows]
+
+
 def sanitize_path_component(value: str) -> str:
     return re.sub(r"[^A-Za-z0-9._=-]+", "_", str(value))
 
@@ -695,7 +738,7 @@ def atomic_write_json_gz(obj: Any, path: Path) -> tuple[int, str]:
 
 
 def normalize_exchange_df(exchanges: list[dict[str, Any]], snapshot_date: str) -> pd.DataFrame:
-    df = pd.DataFrame(exchanges)
+    df = pd.DataFrame(rows_with_provider_payload(exchanges))
     if df.empty:
         return df
     df.columns = [camel_to_snake(c) for c in df.columns]
@@ -705,9 +748,9 @@ def normalize_exchange_df(exchanges: list[dict[str, Any]], snapshot_date: str) -
 
 
 def normalize_symbol_df(rows: list[dict[str, Any]], *, exchange_code: str, is_delisted: bool, snapshot_date: str) -> pd.DataFrame:
-    df = pd.DataFrame(rows)
+    df = pd.DataFrame(rows_with_provider_payload(rows))
     if df.empty:
-        return pd.DataFrame(columns=["code", "name", "country", "exchange", "currency", "type", "isin", "exchange_code", "full_symbol", "is_delisted", "snapshot_date", "vendor"])
+        return pd.DataFrame(columns=["code", "name", "country", "exchange", "currency", "type", "isin", "provider_payload_json", "exchange_code", "full_symbol", "is_delisted", "snapshot_date", "vendor"])
     df.columns = [camel_to_snake(c) for c in df.columns]
     if "code" not in df.columns:
         raise RuntimeError(f"Symbol list for {exchange_code} has no code column: {list(df.columns)}")
@@ -722,7 +765,7 @@ def normalize_symbol_df(rows: list[dict[str, Any]], *, exchange_code: str, is_de
 def normalize_eod_df(rows: list[dict[str, Any]], *, full_symbol: str, exchange_code: str, is_delisted: bool, retrieved_at: str) -> pd.DataFrame:
     if not rows:
         return pd.DataFrame()
-    df = pd.DataFrame(rows)
+    df = pd.DataFrame(rows_with_provider_payload(rows))
     df.columns = [camel_to_snake(c) for c in df.columns]
     if "date" not in df.columns:
         raise RuntimeError(f"EOD payload for {full_symbol} has no date column: {list(df.columns)}")
@@ -737,13 +780,13 @@ def normalize_eod_df(rows: list[dict[str, Any]], *, full_symbol: str, exchange_c
     df["is_delisted_from_symbol_list"] = bool(is_delisted)
     df["requested_period"] = "d"
     df["retrieved_at"] = retrieved_at
-    return df[["vendor", "full_symbol", "exchange_code", "date", "open", "high", "low", "close", "adjusted_close", "volume", "is_delisted_from_symbol_list", "requested_period", "retrieved_at"]]
+    return df[["vendor", "full_symbol", "exchange_code", "date", "open", "high", "low", "close", "adjusted_close", "volume", "is_delisted_from_symbol_list", "requested_period", "retrieved_at", "provider_payload_json"]]
 
 
 def normalize_event_df(rows: list[dict[str, Any]], *, full_symbol: str, exchange_code: str, is_delisted: bool, retrieved_at: str, dataset: str) -> pd.DataFrame:
     if not rows:
         return pd.DataFrame()
-    df = pd.DataFrame(rows)
+    df = pd.DataFrame(rows_with_provider_payload(rows))
     df.columns = [camel_to_snake(c) for c in df.columns]
     for col in ["date", "declaration_date", "record_date", "payment_date"]:
         if col in df.columns:
@@ -761,10 +804,10 @@ def normalize_event_df(rows: list[dict[str, Any]], *, full_symbol: str, exchange
 
 
 def normalize_symbol_changes_df(rows: list[dict[str, Any]], snapshot_date: str) -> pd.DataFrame:
-    columns = ["exchange", "old_symbol", "new_symbol", "company_name", "effective", "snapshot_date", "vendor"]
+    columns = ["exchange", "old_symbol", "new_symbol", "company_name", "effective", "snapshot_date", "vendor", "provider_payload_json"]
     if not rows:
         return pd.DataFrame(columns=columns)
-    df = pd.DataFrame(rows)
+    df = pd.DataFrame(rows_with_provider_payload(rows))
     df.columns = [camel_to_snake(c) for c in df.columns]
     aliases = {
         "exchange_code": "exchange",
@@ -1239,7 +1282,7 @@ def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
     p.add_argument("--max-requests-per-minute", type=int, default=900)
     p.add_argument("--max-api-calls-per-day", type=int, default=95_000)
     p.add_argument("--sleep-on-daily-limit", action="store_true")
-    p.add_argument("--min-seconds-between-requests", type=float, default=0.0)
+    p.add_argument("--min-seconds-between-requests", type=float, default=0.05)
     p.add_argument("--state-db", type=Path, default=None)
     p.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"])
     args = p.parse_args(raw_args)
