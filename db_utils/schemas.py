@@ -63,12 +63,12 @@ TABLE_SCHEMAS = {
         'primary_keys': ['date', 'currency', 'source']
     },
     'equity_prices_eur': {
-        'columns': ['security_id', 'listing_id', 'provider', 'provider_symbol', 'date', 'price_local', 'currency', 'units_per_eur', 'price_eur', 'is_fx_forward_filled', 'source_price_file', 'source_fx_file'],
-        'primary_keys': ['security_id', 'listing_id', 'provider', 'date']
+        'columns': ['profile', 'security_id', 'listing_id', 'provider', 'provider_symbol', 'date', 'price_local', 'currency', 'units_per_eur', 'fx_date', 'price_eur', 'is_fx_forward_filled', 'source_price_file', 'source_fx_file'],
+        'primary_keys': ['profile', 'security_id', 'listing_id', 'provider', 'date']
     },
     'equity_eligibility': {
-        'columns': ['security_id', 'date', 'eligible_price_available', 'eligible_min_history', 'eligible_min_price', 'eligible_missingness', 'eligible_security_type', 'eligible_current_tradable_proxy', 'eligible_final', 'ineligibility_reason'],
-        'primary_keys': ['security_id', 'date']
+        'columns': ['profile', 'provider', 'security_id', 'listing_id', 'date', 'eligible_price_available', 'eligible_min_history', 'eligible_min_price', 'eligible_missingness', 'eligible_security_type', 'eligible_current_tradable_proxy', 'eligible_liquidity', 'trailing_session_count', 'trailing_missing_price_ratio', 'trailing_median_dollar_volume', 'stale_price_days', 'eligibility_basis', 'eligible_final', 'ineligibility_reason'],
+        'primary_keys': ['profile', 'security_id', 'date']
     },
     'stock_momentum_panels': {
         'columns': ['strategy_family', 'profile', 'rebalance_frequency', 'rebalance_date', 'signal_date', 'execution_date', 'security_id', 'listing_id', 'provider_symbol', 'name', 'currency', 'price_eur_signal', 'price_eur_lookback', 'momentum_3m', 'momentum_6m', 'momentum_9m', 'momentum_12m', 'momentum_12_1m', 'volatility_3m', 'volatility_6m', 'volatility_12m', 'rank_metric', 'rank_ascending_false', 'eligible_final', 'run_id'],

@@ -1,0 +1,41 @@
+[project]
+name = "stock_momentum"
+profile = "eodhd_us_v1"
+base_currency = "EUR"
+artifact_dir = "derived/stock_momentum/eodhd_us_v1"
+start_date = "2000-01-01"
+end_date = ""
+
+[sources.eodhd]
+enabled = true
+provider = "eodhd"
+universe = "eodhd_us_listed_common_equities_v1"
+
+[sources.ecb_fx]
+enabled = true
+api_base = "https://data-api.ecb.europa.eu/service/data"
+series_key = "D..EUR.SP00.A"
+raw_dir = "derived/stock_momentum/raw/ecb_fx"
+
+[universe]
+calendar = "XNYS"
+min_price_eur = 2.0
+min_history_months_before_eligibility = 13
+max_stale_price_days_at_rebalance = 5
+max_missing_daily_price_ratio_per_year = 0.10
+missingness_window_sessions = 252
+liquidity_window_sessions = 63
+min_median_dollar_volume = 1000000.0
+
+[momentum]
+lookbacks_months = [3, 6, 9, 12]
+skip_recent_months = [0, 1]
+rank_metric = "total_return_eur"
+positive_momentum_only = false
+
+[backtest]
+rebalance_frequencies = ["monthly", "quarterly"]
+top_n = [3, 5, 10]
+weighting_schemes = ["equal_weight", "positive_momentum_proportional"]
+cash_return_annual = 0.0
+transaction_cost_bps_one_way = [0, 10, 25, 50, 100]

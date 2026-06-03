@@ -20,8 +20,9 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    load_config(args.config)
-    panel = read_sql(build_engine(), "SELECT * FROM stock_momentum_panels")
+    config = load_config(args.config)
+    profile = config["project"].get("profile", "free_prototype")
+    panel = read_sql(build_engine(), f"SELECT * FROM stock_momentum_panels WHERE profile = '{profile}'")
     strategy_id = f"stock_momentum_top{args.top_n}_{args.weighting_scheme}_{args.cost_bps:g}bps"
     trades = build_trades(panel, strategy_id, args.top_n, args.weighting_scheme, args.cost_bps)
     results = summarize_trades(trades, strategy_id)

@@ -41,11 +41,17 @@ def momentum(price_series: pd.Series, signal_date: pd.Timestamp, lookback_months
 
 def build_momentum_panel(
     eur_prices: pd.DataFrame,
+    eligibility: pd.DataFrame | None = None,
     frequency: str = "monthly",
     profile: str = "free_prototype",
 ) -> pd.DataFrame:
     prices = eur_prices.copy()
     prices["date"] = pd.to_datetime(prices["date"])
+    eligibility_lookup = {}
+    if eligibility is not None and not eligibility.empty:
+        eligible = eligibility.copy()
+        eligible["date"] = pd.to_datetime(eligible["date"]).dt.date
+        eligibility_lookup = eligible.set_index(["security_id", "date"])["eligible_final"].to_dict()
     if frequency not in {"monthly", "quarterly"}:
         raise ValueError("frequency must be monthly or quarterly")
     freq = "ME" if frequency == "monthly" else "QE"
@@ -92,7 +98,7 @@ def build_momentum_panel(
                     "volatility_12m": None,
                     "rank_metric": m12,
                     "rank_ascending_false": None,
-                    "eligible_final": m12 is not None,
+                    "eligible_final": m12 is not None and eligibility_lookup.get((security_id, signal_date.date()), eligibility is None),
                     "run_id": None,
                 }
             )

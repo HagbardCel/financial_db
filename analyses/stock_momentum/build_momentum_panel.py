@@ -19,13 +19,18 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     config = load_config(args.config)
-    prices = read_sql(build_engine(), "SELECT * FROM equity_prices_eur")
+    profile = config["project"].get("profile", "free_prototype")
+    engine = build_engine()
+    prices = read_sql(engine, f"SELECT * FROM equity_prices_eur WHERE profile = '{profile}'")
+    eligibility = read_sql(engine, f"SELECT * FROM equity_eligibility WHERE profile = '{profile}'")
     panel = build_momentum_panel(
         prices,
+        eligibility,
         frequency=args.frequency,
-        profile=config["project"].get("profile", "free_prototype"),
+        profile=profile,
     )
     with DatabaseConnection(config=get_database_config()) as db:
+        db.cursor.execute("DELETE FROM stock_momentum_panels WHERE profile = %s AND rebalance_frequency = %s", (profile, args.frequency))
         DataRepository(db).save_dataframe(panel, "stock_momentum_panels")
     return 0
 
