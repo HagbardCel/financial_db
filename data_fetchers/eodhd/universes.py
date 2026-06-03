@@ -11,12 +11,10 @@ import psycopg2
 from psycopg2 import extras
 
 from db_utils.config import get_database_config
-from .downloader import resolve_root, sha256_file
+from .common import is_valid_isin
+from .paths import resolve_root, sha256_file
 from .reporting import metadata_paths, resolve_snapshot_date
-from .settings import DEFAULT_CONFIG_PATH, config_for_universe, load_config, load_eodhd_config
-
-
-VALID_ISIN = r"^[A-Z]{2}[A-Z0-9]{9}[0-9]$"
+from .settings import DEFAULT_CONFIG_PATH, config_for_universe, load_eodhd_config
 
 
 @dataclass(frozen=True)
@@ -69,7 +67,7 @@ def build_universe(
     config = {"universes": cfg.universes}
     definition = config_for_universe(cfg, universe_name)
     symbols = pd.read_parquet(paths[1]).copy()
-    symbols["isin_valid"] = symbols["isin"].fillna("").astype(str).str.match(VALID_ISIN)
+    symbols["isin_valid"] = is_valid_isin(symbols["isin"])
     symbols["identity_key"] = symbols["full_symbol"]
     symbols.loc[symbols["isin_valid"], "identity_key"] = symbols.loc[symbols["isin_valid"], "isin"]
     symbols["membership_status"] = symbols.apply(lambda row: _exclusion_reason(row, definition), axis=1)
@@ -129,8 +127,7 @@ def build_universe(
 
 
 def persist_universe_build(build: UniverseBuild, *, config_path: str | Path = DEFAULT_CONFIG_PATH) -> None:
-    config = load_config(config_path)
-    definition = config["universes"][build.universe_name]
+    definition = config_for_universe(load_eodhd_config(config_path), build.universe_name)
     rows = [
         [None if pd.isna(value) else value.item() if hasattr(value, "item") else value for value in row]
         for row in build.memberships.itertuples(index=False, name=None)

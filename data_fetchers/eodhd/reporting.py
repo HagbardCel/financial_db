@@ -8,7 +8,10 @@ from typing import Any
 
 import pandas as pd
 
-from .downloader import resolve_root
+from .common import is_valid_isin, resolve_snapshot_date, resolve_state_db_path
+from .paths import resolve_root
+
+__all__ = ["MetadataReport", "build_metadata_report", "metadata_paths", "resolve_snapshot_date"]
 
 
 @dataclass(frozen=True)
@@ -18,15 +21,6 @@ class MetadataReport:
     summary: dict[str, Any]
 
 
-def resolve_snapshot_date(root: Path, snapshot_date: str) -> str:
-    if snapshot_date != "latest":
-        return snapshot_date
-    snapshots = sorted((root / "metadata" / "symbol_lists").glob("snapshot_date=*/symbols.parquet"))
-    if not snapshots:
-        raise RuntimeError("No consolidated EODHD symbol snapshots found.")
-    return snapshots[-1].parent.name.split("=", 1)[1]
-
-
 def metadata_paths(root: Path, snapshot_date: str) -> tuple[Path, Path]:
     return (
         root / "metadata" / "exchanges" / f"snapshot_date={snapshot_date}" / "exchanges.parquet",
@@ -34,12 +28,8 @@ def metadata_paths(root: Path, snapshot_date: str) -> tuple[Path, Path]:
     )
 
 
-def _valid_isin(series: pd.Series) -> pd.Series:
-    return series.fillna("").astype(str).str.match(r"^[A-Z]{2}[A-Z0-9]{9}[0-9]$")
-
-
 def _download_state_counts(root: Path) -> pd.DataFrame:
-    path = root / "state" / "eodhd_all_world_snapshot.sqlite3"
+    path = resolve_state_db_path(root)
     columns = ["dataset", "status", "count"]
     if not path.exists():
         return pd.DataFrame(columns=columns)
@@ -90,7 +80,7 @@ def build_metadata_report(
     missing_isin["missing_isin_rate"] = missing_isin["missing_isin_count"] / missing_isin["symbol_count"]
     missing_isin.reset_index().to_csv(output_dir / "missing_isin_by_exchange.csv", index=False)
 
-    valid = symbols[_valid_isin(symbols["isin"])].copy()
+    valid = symbols[is_valid_isin(symbols["isin"])].copy()
     duplicates = valid[valid.duplicated("isin", keep=False)].sort_values(["isin", "exchange_code", "full_symbol"])
     duplicates.to_csv(output_dir / "duplicate_isin_groups.csv", index=False)
     cross_exchange = duplicates.groupby("isin").filter(lambda frame: frame["exchange_code"].nunique() > 1)

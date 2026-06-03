@@ -15,7 +15,7 @@ import psycopg2
 
 from db_utils.config import get_database_config
 
-from .downloader import dataset_output_path, resolve_root, sha256_file
+from .paths import dataset_output_path, resolve_root, sha256_file
 from .price_quality import load_memberships_file, load_persisted_memberships
 
 

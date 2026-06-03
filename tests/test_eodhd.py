@@ -118,7 +118,7 @@ def test_refresh_cli_forwards_bare_command_to_full_archive_preset(monkeypatch: p
         captured["args"] = parse_args(argv)
         return 0
 
-    monkeypatch.setattr(eodhd_main.downloader, "main", fake_downloader_main)
+    monkeypatch.setattr(eodhd_main.downloader_cli, "main", fake_downloader_main)
 
     assert eodhd_main.main(["refresh"]) == 0
     args = captured["args"]
@@ -229,8 +229,8 @@ _TEST_CLIENT_API_KW = {
 
 def test_provider_429_retries_after_shared_retry_after_cooldown(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     clock = FakeClock()
-    monkeypatch.setattr("data_fetchers.eodhd.downloader.time.monotonic", clock.monotonic)
-    monkeypatch.setattr("data_fetchers.eodhd.downloader.time.sleep", clock.sleep)
+    monkeypatch.setattr("data_fetchers.eodhd.client.time.monotonic", clock.monotonic)
+    monkeypatch.setattr("data_fetchers.eodhd.client.time.sleep", clock.sleep)
     state = SQLiteState(tmp_path / "state.sqlite3", root=tmp_path)
     session = FakeSession([FakeResponse(429, headers={"Retry-After": "7"}), FakeResponse(200, payload=[{"ok": True}])])
     client = RateLimitedEODHDClient("token", state, ApiLimits(), timeout=1, pool_size=1, **_TEST_CLIENT_API_KW)
@@ -246,8 +246,8 @@ def test_provider_429_retries_after_shared_retry_after_cooldown(monkeypatch: pyt
 
 def test_provider_429_uses_bounded_fallback_cooldown_and_stops_after_five_attempts(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     clock = FakeClock()
-    monkeypatch.setattr("data_fetchers.eodhd.downloader.time.monotonic", clock.monotonic)
-    monkeypatch.setattr("data_fetchers.eodhd.downloader.time.sleep", clock.sleep)
+    monkeypatch.setattr("data_fetchers.eodhd.client.time.monotonic", clock.monotonic)
+    monkeypatch.setattr("data_fetchers.eodhd.client.time.sleep", clock.sleep)
     state = SQLiteState(tmp_path / "state.sqlite3", root=tmp_path)
     session = FakeSession([FakeResponse(429) for _ in range(5)])
     client = RateLimitedEODHDClient("token", state, ApiLimits(), timeout=1, pool_size=1, **_TEST_CLIENT_API_KW)
@@ -268,8 +268,8 @@ def test_provider_429_uses_bounded_fallback_cooldown_and_stops_after_five_attemp
 
 def test_provider_remaining_header_schedules_shared_cooldown(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     clock = FakeClock()
-    monkeypatch.setattr("data_fetchers.eodhd.downloader.time.monotonic", clock.monotonic)
-    monkeypatch.setattr("data_fetchers.eodhd.downloader.time.sleep", clock.sleep)
+    monkeypatch.setattr("data_fetchers.eodhd.client.time.monotonic", clock.monotonic)
+    monkeypatch.setattr("data_fetchers.eodhd.client.time.sleep", clock.sleep)
     state = SQLiteState(tmp_path / "state.sqlite3", root=tmp_path)
     session = FakeSession([
         FakeResponse(200, headers={"X-RateLimit-Remaining": "2"}, payload={"ok": 1}),

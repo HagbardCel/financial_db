@@ -4,6 +4,8 @@ import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
 
+from .common import resolve_state_db_path
+
 
 LEGACY_PREFIX = "data/external/eodhd/"
 
@@ -17,7 +19,7 @@ class ReconcileResult:
 
 
 def reconcile_state(root: Path, *, state_db: Path | None = None, apply: bool = False) -> ReconcileResult:
-    db_path = state_db or root / "state" / "eodhd_all_world_snapshot.sqlite3"
+    db_path = resolve_state_db_path(root, state_db=state_db)
     conn = sqlite3.connect(db_path if apply else f"file:{db_path}?mode=ro&immutable=1", uri=not apply)
     try:
         rows = conn.execute(

@@ -1,6 +1,6 @@
 """Compatibility wrapper for the repo-managed EODHD downloader."""
 
-from data_fetchers.eodhd.downloader import main
+from data_fetchers.eodhd.cli import main
 
 
 if __name__ == "__main__":

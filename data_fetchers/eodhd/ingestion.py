@@ -13,7 +13,7 @@ import pandas as pd
 import psycopg2
 
 from db_utils.config import get_database_config
-from .downloader import resolve_root, sha256_file
+from .paths import resolve_root, sha256_file
 
 
 UTC = dt.timezone.utc

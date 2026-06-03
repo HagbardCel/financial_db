@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import sqlite3
-import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
@@ -13,7 +12,8 @@ import psycopg2
 
 from db_utils.config import get_database_config
 
-from .downloader import atomic_write_parquet, dataset_output_path, resolve_root
+from .common import resolve_state_db_path
+from .paths import atomic_write_csv, atomic_write_parquet, atomic_write_text, dataset_output_path, resolve_root
 
 
 REQUIRED_COLUMNS = {"date", "open", "high", "low", "close", "adjusted_close", "volume"}
@@ -34,22 +34,6 @@ class PriceQualityReport:
     output_dir: Path
     summary: dict[str, Any]
     symbol_quality: pd.DataFrame
-
-
-def _atomic_write_text(text: str, path: Path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", prefix=path.name, suffix=".tmp", dir=path.parent, delete=False) as handle:
-        handle.write(text)
-        temp_path = Path(handle.name)
-    try:
-        temp_path.replace(path)
-    except Exception:
-        temp_path.unlink(missing_ok=True)
-        raise
-
-
-def _atomic_write_csv(frame: pd.DataFrame, path: Path) -> None:
-    _atomic_write_text(frame.to_csv(index=False), path)
 
 
 def _latest_build_id(cursor: Any, universe_name: str) -> str:
@@ -116,7 +100,7 @@ def _as_bool(value: Any) -> bool:
 
 
 def load_checkpoint_statuses(root: Path) -> dict[tuple[str, bool], str]:
-    path = root / "state" / "eodhd_all_world_snapshot.sqlite3"
+    path = resolve_state_db_path(root)
     if not path.exists():
         return {}
     connection = sqlite3.connect(f"file:{path}?mode=ro&immutable=1", uri=True)
@@ -265,9 +249,9 @@ def build_price_quality_report(
         "status_counts": {str(row.status): int(row.count) for row in status_counts.itertuples(index=False)},
     }
     atomic_write_parquet(quality, output_dir / "symbol_quality.parquet")
-    _atomic_write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n", output_dir / "summary.json")
-    _atomic_write_csv(status_counts, output_dir / "status_counts.csv")
-    _atomic_write_csv(quality[quality["status"].eq("missing_file")], output_dir / "missing_price_files.csv")
+    atomic_write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n", output_dir / "summary.json")
+    atomic_write_csv(status_counts, output_dir / "status_counts.csv")
+    atomic_write_csv(quality[quality["status"].eq("missing_file")], output_dir / "missing_price_files.csv")
     coverage_columns = ["build_id", "eodhd_symbol", "exchange_code", "is_delisted", "status", "row_count", "adjusted_close_coverage_ratio", "non_positive_adjusted_close_count"]
-    _atomic_write_csv(quality.reindex(columns=coverage_columns), output_dir / "adjusted_close_coverage.csv")
+    atomic_write_csv(quality.reindex(columns=coverage_columns), output_dir / "adjusted_close_coverage.csv")
     return PriceQualityReport(resolved_build_id, universe_name, output_dir, summary, quality)

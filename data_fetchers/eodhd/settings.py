@@ -157,6 +157,46 @@ class EodhdConfig:
     universes: dict[str, dict[str, Any]]
 
 
+def _load_reports_config(reports_raw: dict[str, Any]) -> ReportsConfig:
+    metadata_raw = _require_table(reports_raw.get("metadata"), "reports.metadata")
+    universes_raw = _require_table(reports_raw.get("universes"), "reports.universes")
+    price_quality_raw = _require_table(reports_raw.get("price_quality"), "reports.price_quality")
+    materialization_raw = _require_table(reports_raw.get("materialization"), "reports.materialization")
+    return ReportsConfig(
+        metadata=MetadataReportConfig(
+            snapshot_date=_require_str(metadata_raw.get("snapshot_date", "latest"), "reports.metadata.snapshot_date"),
+            output_root=_relative_path(
+                metadata_raw.get("output_root", "derived/reports/eodhd/metadata"),
+                "reports.metadata.output_root",
+            ),
+        ),
+        universes=UniversesReportConfig(
+            snapshot_date=_require_str(universes_raw.get("snapshot_date", "latest"), "reports.universes.snapshot_date"),
+            output_root=_relative_path(
+                universes_raw.get("output_root", "derived/reports/eodhd/universes"),
+                "reports.universes.output_root",
+            ),
+            persist_to_db=_require_bool(universes_raw.get("persist_to_db", True), "reports.universes.persist_to_db"),
+        ),
+        price_quality=PriceQualityReportConfig(
+            build_id=_require_str(price_quality_raw.get("build_id", "latest"), "reports.price_quality.build_id"),
+            workers=_require_int(price_quality_raw.get("workers", 8), "reports.price_quality.workers"),
+            output_root=_relative_path(
+                price_quality_raw.get("output_root", "derived/reports/eodhd/price_quality"),
+                "reports.price_quality.output_root",
+            ),
+        ),
+        materialization=MaterializationReportConfig(
+            build_id=_require_str(materialization_raw.get("build_id", "latest"), "reports.materialization.build_id"),
+            output_root=_relative_path(
+                materialization_raw.get("output_root", "derived/reports/eodhd/materialization"),
+                "reports.materialization.output_root",
+            ),
+            allow_partial=_require_bool(materialization_raw.get("allow_partial", False), "reports.materialization.allow_partial"),
+        ),
+    )
+
+
 def config_for_universe(cfg: EodhdConfig, universe_name: str) -> dict[str, Any]:
     try:
         return cfg.universes[universe_name]
@@ -242,68 +282,7 @@ def load_eodhd_config(path: str | Path = DEFAULT_CONFIG_PATH) -> EodhdConfig:
             default_scope=_require_str(ingest_raw.get("default_scope", "metadata"), "ingest.default_scope"),
             batch_rows=_require_int(ingest_raw.get("batch_rows", 10_000), "ingest.batch_rows"),
         ),
-        reports=ReportsConfig(
-            metadata=MetadataReportConfig(
-                snapshot_date=_require_str(
-                    _require_table(reports_raw.get("metadata"), "reports.metadata").get("snapshot_date", "latest"),
-                    "reports.metadata.snapshot_date",
-                ),
-                output_root=_relative_path(
-                    _require_table(reports_raw.get("metadata"), "reports.metadata").get(
-                        "output_root", "derived/reports/eodhd/metadata"
-                    ),
-                    "reports.metadata.output_root",
-                ),
-            ),
-            universes=UniversesReportConfig(
-                snapshot_date=_require_str(
-                    _require_table(reports_raw.get("universes"), "reports.universes").get("snapshot_date", "latest"),
-                    "reports.universes.snapshot_date",
-                ),
-                output_root=_relative_path(
-                    _require_table(reports_raw.get("universes"), "reports.universes").get(
-                        "output_root", "derived/reports/eodhd/universes"
-                    ),
-                    "reports.universes.output_root",
-                ),
-                persist_to_db=_require_bool(
-                    _require_table(reports_raw.get("universes"), "reports.universes").get("persist_to_db", True),
-                    "reports.universes.persist_to_db",
-                ),
-            ),
-            price_quality=PriceQualityReportConfig(
-                build_id=_require_str(
-                    _require_table(reports_raw.get("price_quality"), "reports.price_quality").get("build_id", "latest"),
-                    "reports.price_quality.build_id",
-                ),
-                workers=_require_int(
-                    _require_table(reports_raw.get("price_quality"), "reports.price_quality").get("workers", 8),
-                    "reports.price_quality.workers",
-                ),
-                output_root=_relative_path(
-                    _require_table(reports_raw.get("price_quality"), "reports.price_quality").get(
-                        "output_root", "derived/reports/eodhd/price_quality"
-                    ),
-                    "reports.price_quality.output_root",
-                ),
-            ),
-            materialization=MaterializationReportConfig(
-                build_id=_require_str(
-                    _require_table(reports_raw.get("materialization"), "reports.materialization").get("build_id", "latest"),
-                    "reports.materialization.build_id",
-                ),
-                output_root=_relative_path(
-                    _require_table(reports_raw.get("materialization"), "reports.materialization").get(
-                        "output_root", "derived/reports/eodhd/materialization"
-                    ),
-                    "reports.materialization.output_root",
-                ),
-                allow_partial=_require_bool(
-                    _require_table(reports_raw.get("materialization"), "reports.materialization").get("allow_partial", False),
-                    "reports.materialization.allow_partial",
-                ),
-            ),
-        ),
+        reports=_load_reports_config(reports_raw),
         universes=universes,
     )
 
