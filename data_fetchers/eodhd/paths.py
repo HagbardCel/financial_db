@@ -12,8 +12,11 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
+import pyarrow.parquet as pq
 
 from db_utils.config import get_eodhd_archive_root
+
+from .parquet_schema import table_for_write
 
 
 def resolve_root(root: Path | None) -> Path:
@@ -34,12 +37,15 @@ def sha256_file(path: Path, chunk_size: int = 1024 * 1024) -> str:
     return h.hexdigest()
 
 
-def atomic_write_parquet(df: pd.DataFrame, path: Path) -> tuple[int, str]:
+def atomic_write_parquet(df: pd.DataFrame, path: Path, *, dataset: str | None = None) -> tuple[int, str]:
     path.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.NamedTemporaryFile(prefix=path.name, suffix=".tmp", dir=path.parent, delete=False) as tmp:
         tmp_path = Path(tmp.name)
     try:
-        df.to_parquet(tmp_path, index=False, compression="zstd")
+        if dataset is not None:
+            pq.write_table(table_for_write(df, dataset), tmp_path, compression="zstd")
+        else:
+            df.to_parquet(tmp_path, index=False, compression="zstd")
         sha = sha256_file(tmp_path)
         tmp_path.replace(path)
         return path.stat().st_size, sha

@@ -193,7 +193,7 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
             exchanges = client.get_exchanges()
             exchange_df = normalize_exchange_df(exchanges, snapshot_date=snapshot_date)
             exchange_out = root / "metadata" / "exchanges" / f"snapshot_date={snapshot_date}" / "exchanges.parquet"
-            atomic_write_parquet(exchange_df, exchange_out)
+            atomic_write_parquet(exchange_df, exchange_out, dataset="exchange_snapshots")
             logging.info("Exchange metadata written: %s (%s rows)", exchange_out, len(exchange_df))
             exchange_codes = build_exchange_codes(
                 exchange_df,

@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import datetime as dt
 import json
 import re
 from typing import Any
 
 import pandas as pd
+
+from .parquet_schema import parse_snapshot_date
 
 
 def camel_to_snake(name: str) -> str:
@@ -28,7 +31,7 @@ def normalize_exchange_df(exchanges: list[dict[str, Any]], snapshot_date: str) -
     if df.empty:
         return df
     df.columns = [camel_to_snake(c) for c in df.columns]
-    df["snapshot_date"] = snapshot_date
+    df["snapshot_date"] = parse_snapshot_date(snapshot_date)
     df["vendor"] = "eodhd"
     return df
 
@@ -59,13 +62,18 @@ def normalize_symbol_df(rows: list[dict[str, Any]], *, exchange_code: str, is_de
     df["exchange_code"] = exchange_code
     df["full_symbol"] = df["code"].astype(str).str.strip() + "." + exchange_code
     df["is_delisted"] = bool(is_delisted)
-    df["snapshot_date"] = snapshot_date
+    df["snapshot_date"] = parse_snapshot_date(snapshot_date)
     df["vendor"] = "eodhd"
     return df
 
 
 def normalize_eod_df(
-    rows: list[dict[str, Any]], *, full_symbol: str, exchange_code: str, is_delisted: bool, retrieved_at: str
+    rows: list[dict[str, Any]],
+    *,
+    full_symbol: str,
+    exchange_code: str,
+    is_delisted: bool,
+    retrieved_at: dt.datetime,
 ) -> pd.DataFrame:
     if not rows:
         return pd.DataFrame()
@@ -75,7 +83,10 @@ def normalize_eod_df(
         raise RuntimeError(f"EOD payload for {full_symbol} has no date column: {list(df.columns)}")
     df["date"] = pd.to_datetime(df["date"], errors="coerce").dt.date
     for col in ["open", "high", "low", "close", "adjusted_close"]:
-        df[col] = pd.to_numeric(df[col], errors="coerce") if col in df.columns else pd.NA
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce").astype("float64")
+        else:
+            df[col] = pd.Series(float("nan"), index=df.index, dtype="float64")
     df["volume"] = pd.to_numeric(df.get("volume", pd.Series([pd.NA] * len(df))), errors="coerce").astype("Int64")
     df = df.dropna(subset=["date"]).drop_duplicates(subset=["date"], keep="last").sort_values("date")
     df["vendor"] = "eodhd"
@@ -105,7 +116,13 @@ def normalize_eod_df(
 
 
 def normalize_event_df(
-    rows: list[dict[str, Any]], *, full_symbol: str, exchange_code: str, is_delisted: bool, retrieved_at: str, dataset: str
+    rows: list[dict[str, Any]],
+    *,
+    full_symbol: str,
+    exchange_code: str,
+    is_delisted: bool,
+    retrieved_at: dt.datetime,
+    dataset: str,
 ) -> pd.DataFrame:
     if not rows:
         return pd.DataFrame()
@@ -147,6 +164,6 @@ def normalize_symbol_changes_df(rows: list[dict[str, Any]], snapshot_date: str) 
         if col not in df.columns:
             df[col] = pd.NA
     df["effective"] = pd.to_datetime(df["effective"], errors="coerce").dt.date
-    df["snapshot_date"] = snapshot_date
+    df["snapshot_date"] = parse_snapshot_date(snapshot_date)
     df["vendor"] = "eodhd"
     return df[columns]

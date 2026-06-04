@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime as dt
 import os
 from pathlib import Path
 
@@ -7,6 +8,7 @@ import pandas as pd
 import psycopg2
 import pytest
 
+from data_fetchers.eodhd.downloader import atomic_write_parquet, normalize_eod_df, normalize_exchange_df, normalize_symbol_df
 from data_fetchers.eodhd.ingestion import ingest_file
 from data_fetchers.eodhd import materialization
 from data_fetchers.eodhd.materialization import materialize_curated
@@ -28,35 +30,42 @@ def test_parquet_ingest_upsert_skip_and_price_views(tmp_path: Path):
         conn.commit()
         exchange_path = tmp_path / "metadata/exchanges/snapshot_date=2026-01-03/exchanges.parquet"
         exchange_path.parent.mkdir(parents=True)
-        pd.DataFrame(
+        exchange_df = normalize_exchange_df(
             [{
-                "code": "US", "name": "USA Stocks", "country": "USA", "currency": "USD",
-                "operating_mic": "XNAS, XNYS", "country_iso2": "US", "country_iso3": "USA",
-                "snapshot_date": "2026-01-03",
-            }]
-        ).to_parquet(exchange_path, index=False, compression="zstd")
+                "Code": "US", "Name": "USA Stocks", "Country": "USA", "Currency": "USD",
+                "OperatingMIC": "XNAS, XNYS", "CountryISO2": "US", "CountryISO3": "USA",
+            }],
+            snapshot_date="2026-01-03",
+        )
+        atomic_write_parquet(exchange_df, exchange_path, dataset="exchange_snapshots")
         symbol_path = tmp_path / "metadata/symbol_lists/snapshot_date=2026-01-03/symbols.parquet"
         symbol_path.parent.mkdir(parents=True)
-        pd.DataFrame(
+        symbol_df = normalize_symbol_df(
             [{
-                "code": "AAPL", "name": "Apple", "exchange": "NASDAQ", "country": "USA",
-                "currency": "USD", "type": "Common Stock", "isin": "US0378331005",
-                "exchange_code": "US", "full_symbol": "AAPL.US", "is_delisted": False,
-                "snapshot_date": "2026-01-03", "request_type_filter": "ALL",
-            }]
-        ).to_parquet(symbol_path, index=False, compression="zstd")
+                "Code": "AAPL", "Name": "Apple", "Exchange": "NASDAQ", "Country": "USA",
+                "Currency": "USD", "Type": "Common Stock", "Isin": "US0378331005",
+            }],
+            exchange_code="US",
+            is_delisted=False,
+            snapshot_date="2026-01-03",
+        )
+        symbol_df["request_type_filter"] = "ALL"
+        atomic_write_parquet(symbol_df, symbol_path, dataset="symbol_snapshots")
         assert ingest_file(conn, tmp_path, "exchange_snapshots", exchange_path, batch_rows=1) is True
         assert ingest_file(conn, tmp_path, "symbol_snapshots", symbol_path, batch_rows=1) is True
         path = tmp_path / "prices/eod_daily/exchange=US/delisted=0/AAPL.US.parquet"
         path.parent.mkdir(parents=True)
-        pd.DataFrame(
+        price_df = normalize_eod_df(
             [{
-                "full_symbol": "AAPL.US", "exchange_code": "US", "date": "2026-01-02",
-                "open": 10, "high": 12, "low": 9, "close": 11, "adjusted_close": 10.5,
-                "volume": 100, "is_delisted_from_symbol_list": False, "requested_period": "d",
-                "retrieved_at": "2026-01-03T00:00:00+00:00",
-            }]
-        ).to_parquet(path, index=False, compression="zstd")
+                "date": "2026-01-02", "open": 10, "high": 12, "low": 9, "close": 11,
+                "adjusted_close": 10.5, "volume": 100,
+            }],
+            full_symbol="AAPL.US",
+            exchange_code="US",
+            is_delisted=False,
+            retrieved_at=dt.datetime(2026, 1, 3, tzinfo=dt.timezone.utc),
+        )
+        atomic_write_parquet(price_df, path, dataset="eod_daily")
         assert ingest_file(conn, tmp_path, "eod_prices", path, batch_rows=1) is True
         assert ingest_file(conn, tmp_path, "eod_prices", path, batch_rows=1) is False
         with conn.cursor() as cursor:

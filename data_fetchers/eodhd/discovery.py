@@ -31,7 +31,7 @@ def refresh_symbol_changes(client: RateLimitedEODHDClient, root, snapshot_date: 
         return
     df = normalize_symbol_changes_df(rows, snapshot_date)
     out = symbol_changes_path(root, snapshot_date)
-    bytes_written, sha = atomic_write_parquet(df, out)
+    bytes_written, sha = atomic_write_parquet(df, out, dataset="symbol_changes")
     client.state.mark_dataset(
         dataset="symbol_changes",
         exchange_code="",
@@ -73,7 +73,7 @@ def consolidate_symbol_lists(frames: list[pd.DataFrame], root, snapshot_date: st
     out = root / "metadata" / "symbol_lists" / f"snapshot_date={snapshot_date}" / (
         "symbols_partial.parquet" if partial else "symbols.parquet"
     )
-    atomic_write_parquet(universe, out)
+    atomic_write_parquet(universe, out, dataset="symbol_snapshots")
     logging.info("Universe %s written: %s (%s rows)", "partial" if partial else "final", out, len(universe))
     return universe
 
@@ -182,7 +182,7 @@ def discover_symbol_universe(
 
                 df = normalize_symbol_df(rows, exchange_code=exchange, is_delisted=is_delisted, snapshot_date=snapshot_date)
                 df["request_type_filter"] = type_value or "ALL"
-                bytes_written, sha = atomic_write_parquet(df, part_path)
+                bytes_written, sha = atomic_write_parquet(df, part_path, dataset="symbol_snapshots")
                 if not df.empty:
                     frames.append(df)
                 client.state.mark_dataset(

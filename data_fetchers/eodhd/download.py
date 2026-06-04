@@ -49,7 +49,8 @@ def write_dataset_rows(
     raw_json: bool,
     state: SQLiteState,
 ) -> None:
-    retrieved_at = dt.datetime.now(UTC).isoformat(timespec="seconds")
+    retrieved_at = dt.datetime.now(UTC)
+    retrieved_at_label = retrieved_at.isoformat(timespec="seconds")
     if raw_json:
         atomic_write_json_gz(rows, raw_output_path(root, dataset, exchange_code, full_symbol, is_delisted))
 
@@ -61,7 +62,7 @@ def write_dataset_rows(
             is_delisted=is_delisted,
             status="empty",
             rows=0,
-            retrieved_at=retrieved_at,
+            retrieved_at=retrieved_at_label,
         )
         return
 
@@ -80,12 +81,12 @@ def write_dataset_rows(
             is_delisted=is_delisted,
             status="empty",
             rows=0,
-            retrieved_at=retrieved_at,
+            retrieved_at=retrieved_at_label,
         )
         return
 
     out = dataset_output_path(root, dataset, exchange_code, full_symbol, is_delisted)
-    bytes_written, sha = atomic_write_parquet(df, out)
+    bytes_written, sha = atomic_write_parquet(df, out, dataset=dataset)
     state.mark_dataset(
         dataset=dataset,
         exchange_code=exchange_code,
@@ -96,7 +97,7 @@ def write_dataset_rows(
         bytes_written=bytes_written,
         sha256=sha,
         file_path=state.relative_file_path(out),
-        retrieved_at=retrieved_at,
+        retrieved_at=retrieved_at_label,
     )
 
 

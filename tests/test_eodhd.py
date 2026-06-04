@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import datetime as dt
 import json
 import os
 import sqlite3
 from pathlib import Path
 
 import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
 import pytest
 
 from data_fetchers.eodhd import __main__ as eodhd_main
@@ -356,13 +359,66 @@ def test_reference_metadata_preserves_provider_payload_and_maps_typed_columns():
     assert json.loads(mapped["raw_json"])["FutureField"] == "kept"
 
 
+def test_eod_parquet_schema_round_trip(tmp_path: Path):
+    retrieved_at = dt.datetime(2026, 1, 3, tzinfo=dt.timezone.utc)
+    frame = normalize_eod_df(
+        [
+            {
+                "date": "2026-01-02",
+                "open": 10,
+                "high": 12,
+                "low": 9,
+                "close": 11,
+                "adjusted_close": 10.5,
+                "volume": 100,
+            }
+        ],
+        full_symbol="AAPL.US",
+        exchange_code="US",
+        is_delisted=False,
+        retrieved_at=retrieved_at,
+    )
+    path = tmp_path / "AAPL.US.parquet"
+    atomic_write_parquet(frame, path, dataset="eod_daily")
+    schema = pq.read_schema(path)
+    assert schema.field("date").type == pa.date32()
+    assert schema.field("open").type == pa.float64()
+    assert schema.field("volume").type == pa.int64()
+    assert schema.field("retrieved_at").type == pa.timestamp("ns", tz="UTC")
+
+
+def test_legacy_string_date_parquet_transforms():
+    legacy = pd.DataFrame(
+        [
+            {
+                "full_symbol": "AAPL.US",
+                "exchange_code": "US",
+                "date": "2026-01-02",
+                "open": 10,
+                "high": 12,
+                "low": 9,
+                "close": 11,
+                "adjusted_close": 10.5,
+                "volume": 100,
+                "is_delisted_from_symbol_list": False,
+                "requested_period": "d",
+                "retrieved_at": "2026-01-03T00:00:00+00:00",
+            }
+        ]
+    )
+    columns, rows = transform("eod_prices", legacy, "prices/eod_daily/exchange=US/delisted=0/AAPL.US.parquet")
+    mapped = dict(zip(columns, rows[0], strict=True))
+    assert mapped["date"] == "2026-01-02"
+    assert mapped["close"] == 11
+
+
 def test_eod_and_symbol_change_parquet_rows_preserve_unknown_provider_fields():
     eod = normalize_eod_df(
         [{"date": "2026-01-02", "close": 11, "future_field": "kept"}],
         full_symbol="AAPL.US",
         exchange_code="US",
         is_delisted=False,
-        retrieved_at="2026-01-03T00:00:00+00:00",
+        retrieved_at=dt.datetime(2026, 1, 3, tzinfo=dt.timezone.utc),
     )
     assert json.loads(eod.iloc[0]["provider_payload_json"])["future_field"] == "kept"
 
